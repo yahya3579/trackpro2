@@ -3,9 +3,12 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
+import { cn } from '@/lib/utils';
+import { Spotlight } from '@/components/ui/spotlight';
+import { CardSpotlight } from '@/components/ui/card-spotlight';
+import { PulseButton, GradientButton, ShimmerButton } from '@/components/ui/aceternity-button';
+import { CardContainer, CardBody, CardItem } from '@/components/ui/3d-card';
 
 // Animation variants
 const fadeIn = {
@@ -52,7 +55,7 @@ export default function Home() {
     <div className="min-h-screen flex flex-col bg-background text-foreground overflow-hidden">
       {/* Navigation */}
       <motion.nav 
-        className="bg-card shadow-sm border-b sticky top-0 z-50"
+        className="bg-card shadow-sm border-b sticky top-0 z-50 backdrop-blur-sm bg-opacity-80"
         initial={{ y: -100 }}
         animate={{ y: 0 }}
         transition={{ type: "spring", stiffness: 50 }}
@@ -86,28 +89,25 @@ export default function Home() {
               </div>
             </div>
             <div className="hidden md:flex items-center space-x-4">
-              <Button variant="ghost" asChild className="hover:bg-primary/10">
-                <Link href="/login">Login</Link>
-              </Button>
-              <Button asChild className="relative overflow-hidden group">
+              <Link href="/login" className="text-foreground hover:text-primary transition-colors">
+                Login
+              </Link>
+              <PulseButton asChild>
                 <Link href="/signup">
-                  <span className="relative z-10">Sign Up</span>
-                  <motion.span 
-                    className="absolute inset-0 bg-primary-foreground/10" 
-                    initial={{ x: "-100%" }}
-                    whileHover={{ x: 0 }}
-                    transition={{ type: "tween", ease: "easeInOut", duration: 0.3 }}
-                  />
+                  Sign Up
                 </Link>
-              </Button>
+              </PulseButton>
             </div>
             <div className="-mr-2 flex items-center md:hidden">
-              <Button variant="ghost" size="icon" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
+              <button 
+                className="inline-flex items-center justify-center p-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent focus:outline-none"
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              >
                 <span className="sr-only">Open main menu</span>
                 <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" aria-hidden="true">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
                 </svg>
-              </Button>
+              </button>
             </div>
           </div>
         </div>
@@ -137,12 +137,12 @@ export default function Home() {
             </div>
             <div className="pt-4 pb-3 border-t border-border">
               <div className="flex items-center px-4 space-x-3">
-                <Button variant="ghost" asChild className="w-full justify-start">
-                  <Link href="/login">Login</Link>
-                </Button>
-                <Button asChild className="w-full justify-start">
+                <Link href="/login" className="block px-4 py-2 text-base font-medium text-muted-foreground hover:text-foreground">
+                  Login
+                </Link>
+                <PulseButton asChild>
                   <Link href="/signup">Sign Up</Link>
-                </Button>
+                </PulseButton>
               </div>
             </div>
           </motion.div>
@@ -151,6 +151,10 @@ export default function Home() {
 
       {/* Hero Section */}
       <div className="relative bg-background py-12 overflow-hidden">
+        <Spotlight
+          className="-top-40 left-0 md:left-60 md:-top-20"
+          fill="purple"
+        />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             {/* Left column - Text */}
@@ -166,7 +170,7 @@ export default function Home() {
                 variants={fadeInFromLeft}
               >
                 <span className="block">Maximize Productivity</span>
-                <span className="block text-primary">Track With Confidence</span>
+                <span className="block text-transparent bg-clip-text bg-gradient-to-r from-primary to-purple-600">Track With Confidence</span>
               </motion.h1>
               <motion.p 
                 className="mt-3 text-base text-muted-foreground sm:mt-5 sm:text-lg sm:max-w-xl sm:mx-auto lg:mx-0 md:mt-5 md:text-xl"
@@ -175,11 +179,11 @@ export default function Home() {
                 TrackPro helps you monitor employee productivity, attendance, and performance with powerful analytics and intuitive dashboards.
               </motion.p>
               <motion.div 
-                className="mt-5 sm:mt-8 sm:flex sm:justify-center lg:justify-start"
+                className="mt-5 sm:mt-8 sm:flex sm:justify-center lg:justify-start gap-4"
                 variants={fadeIn}
               >
-                <Button size="lg" asChild className="shadow-lg hover:shadow-primary/20 transition-all duration-300">
-                  <a href="/demo">
+                <GradientButton asChild>
+                  <a href="/demo" className="flex items-center">
                     Get Started
                     <motion.svg 
                       className="ml-2 h-4 w-4" 
@@ -192,10 +196,10 @@ export default function Home() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
                     </motion.svg>
                   </a>
-                </Button>
-                <Button size="lg" variant="outline" asChild className="mt-3 sm:mt-0 sm:ml-3 border-primary/20 hover:border-primary/50">
+                </GradientButton>
+                <ShimmerButton asChild className="sm:ml-3">
                   <a href="/learn-more">Learn More</a>
-                </Button>
+                </ShimmerButton>
               </motion.div>
             </motion.div>
 
@@ -208,14 +212,14 @@ export default function Home() {
               variants={fadeInFromRight}
             >
               <motion.div
-                className="relative rounded-lg shadow-xl overflow-hidden w-full h-auto"
+                className="relative overflow-hidden rounded-2xl shadow-2xl"
                 whileHover={{ scale: 1.02 }}
                 transition={{ type: "spring", stiffness: 300 }}
               >
                 <img
                   src="https://images.unsplash.com/photo-1522071820081-009f0129c71c?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D"
                   alt="Team working in office"
-                  className="w-full h-auto object-cover rounded-lg shadow-lg"
+                  className="w-full h-auto object-cover rounded-2xl shadow-lg"
                 />
               </motion.div>
             </motion.div>
@@ -225,7 +229,7 @@ export default function Home() {
 
       {/* Features Section */}
       <motion.div 
-        className="py-16 bg-muted"
+        className="py-16 bg-muted relative"
         initial="hidden"
         whileInView="visible"
         viewport={{ once: true }}
@@ -262,18 +266,11 @@ export default function Home() {
               viewport={{ once: true, margin: "-100px" }}
             >
               {/* Feature 1 */}
-              <motion.div 
-                className="relative bg-card p-8 rounded-xl shadow-sm border overflow-hidden group"
+              <CardSpotlight 
                 variants={fadeIn}
-                whileHover={{ y: -5, boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1)" }}
-                transition={{ type: "spring", stiffness: 300 }}
+                color="rgba(var(--color-primary), 0.15)"
+                className="group p-8"
               >
-                <motion.div 
-                  className="absolute bottom-0 right-0 w-32 h-32 bg-primary/10 rounded-full -mr-16 -mb-16"
-                  initial={{ scale: 0.8, opacity: 0.5 }}
-                  whileHover={{ scale: 1, opacity: 0.8 }}
-                  transition={{ duration: 0.5 }}
-                />
                 <div className="relative">
                   <div className="flex items-center justify-center h-12 w-12 rounded-full bg-primary text-primary-foreground">
                     <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -287,21 +284,14 @@ export default function Home() {
                     </p>
                   </div>
                 </div>
-              </motion.div>
+              </CardSpotlight>
 
               {/* Feature 2 */}
-              <motion.div 
-                className="relative bg-card p-8 rounded-xl shadow-sm border overflow-hidden group"
+              <CardSpotlight 
                 variants={fadeIn}
-                whileHover={{ y: -5, boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1)" }}
-                transition={{ type: "spring", stiffness: 300 }}
+                color="rgba(var(--color-primary), 0.15)"
+                className="group p-8"
               >
-                <motion.div 
-                  className="absolute bottom-0 right-0 w-32 h-32 bg-primary/10 rounded-full -mr-16 -mb-16"
-                  initial={{ scale: 0.8, opacity: 0.5 }}
-                  whileHover={{ scale: 1, opacity: 0.8 }}
-                  transition={{ duration: 0.5 }}
-                />
                 <div className="relative">
                   <div className="flex items-center justify-center h-12 w-12 rounded-full bg-primary text-primary-foreground">
                     <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -315,21 +305,14 @@ export default function Home() {
                     </p>
                   </div>
                 </div>
-              </motion.div>
+              </CardSpotlight>
 
               {/* Feature 3 */}
-              <motion.div 
-                className="relative bg-card p-8 rounded-xl shadow-sm border overflow-hidden group"
+              <CardSpotlight 
                 variants={fadeIn}
-                whileHover={{ y: -5, boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1)" }}
-                transition={{ type: "spring", stiffness: 300 }}
+                color="rgba(var(--color-primary), 0.15)"
+                className="group p-8"
               >
-                <motion.div 
-                  className="absolute bottom-0 right-0 w-32 h-32 bg-primary/10 rounded-full -mr-16 -mb-16"
-                  initial={{ scale: 0.8, opacity: 0.5 }}
-                  whileHover={{ scale: 1, opacity: 0.8 }}
-                  transition={{ duration: 0.5 }}
-                />
                 <div className="relative">
                   <div className="flex items-center justify-center h-12 w-12 rounded-full bg-primary text-primary-foreground">
                     <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -343,21 +326,14 @@ export default function Home() {
                     </p>
                   </div>
                 </div>
-              </motion.div>
+              </CardSpotlight>
 
               {/* Feature 4 */}
-              <motion.div 
-                className="relative bg-card p-8 rounded-xl shadow-sm border overflow-hidden group"
+              <CardSpotlight 
                 variants={fadeIn}
-                whileHover={{ y: -5, boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1)" }}
-                transition={{ type: "spring", stiffness: 300 }}
+                color="rgba(var(--color-primary), 0.15)"
+                className="group p-8"
               >
-                <motion.div 
-                  className="absolute bottom-0 right-0 w-32 h-32 bg-primary/10 rounded-full -mr-16 -mb-16"
-                  initial={{ scale: 0.8, opacity: 0.5 }}
-                  whileHover={{ scale: 1, opacity: 0.8 }}
-                  transition={{ duration: 0.5 }}
-                />
                 <div className="relative">
                   <div className="flex items-center justify-center h-12 w-12 rounded-full bg-primary text-primary-foreground">
                     <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -371,7 +347,7 @@ export default function Home() {
                     </p>
                   </div>
                 </div>
-              </motion.div>
+              </CardSpotlight>
             </motion.div>
           </div>
         </div>
@@ -408,138 +384,133 @@ export default function Home() {
             viewport={{ once: true, margin: "-100px" }}
           >
             {/* Testimonial 1 */}
-            <motion.div 
-              className="bg-card p-6 rounded-xl shadow-md border hover:shadow-xl transition-shadow duration-300"
-              variants={fadeIn}
-              whileHover={{ y: -5 }}
-              transition={{ type: "spring", stiffness: 400 }}
-            >
-              <div className="flex items-center mb-4">
-                <div className="h-12 w-12 relative rounded-full overflow-hidden">
-                  <img
-                    src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e"
-                    alt="Profile"
-                    className="rounded-full object-cover h-full w-full"
-                    width={48}
-                    height={48}
-                  />
+            <CardContainer className="w-full" containerClassName="w-full">
+              <CardBody className="p-6 group">
+                <div className="flex items-center mb-4">
+                  <CardItem translateZ={20} className="h-12 w-12 relative rounded-full overflow-hidden">
+                    <img
+                      src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e"
+                      alt="Profile"
+                      className="rounded-full object-cover h-full w-full"
+                      width={48}
+                      height={48}
+                    />
+                  </CardItem>
+                  <CardItem translateZ={20} className="ml-4">
+                    <h4 className="text-lg font-medium text-foreground">John Smith</h4>
+                    <p className="text-muted-foreground">CEO, TechCorp</p>
+                  </CardItem>
                 </div>
-                <div className="ml-4">
-                  <h4 className="text-lg font-medium text-foreground">John Smith</h4>
-                  <p className="text-muted-foreground">CEO, TechCorp</p>
-                </div>
-              </div>
-              <div className="relative">
-                <svg className="absolute top-0 left-0 h-8 w-8 text-primary/20 -mt-3 -ml-3" fill="currentColor" viewBox="0 0 32 32">
-                  <path d="M9.352 4C4.456 7.456 1 13.12 1 19.36c0 5.088 3.072 8.064 6.624 8.064 3.36 0 5.856-2.688 5.856-5.856 0-3.168-2.208-5.472-5.088-5.472-.576 0-1.344.096-1.536.192.48-3.264 3.552-7.104 6.624-9.024L9.352 4zm16.512 0c-4.8 3.456-8.256 9.12-8.256 15.36 0 5.088 3.072 8.064 6.624 8.064 3.264 0 5.856-2.688 5.856-5.856 0-3.168-2.304-5.472-5.184-5.472-.576 0-1.248.096-1.44.192.48-3.264 3.456-7.104 6.528-9.024L25.864 4z" />
-                </svg>
-                <p className="text-muted-foreground pl-6">
-                  "TrackPro has transformed the way we manage our remote teams. The productivity insights have been invaluable for our business operations."
-                </p>
-              </div>
-            </motion.div>
+                <CardItem
+                  translateZ={20} 
+                  className="relative text-muted-foreground"
+                >
+                  <svg className="absolute top-0 left-0 h-8 w-8 text-primary/20 -mt-3 -ml-3" fill="currentColor" viewBox="0 0 32 32">
+                    <path d="M9.352 4C4.456 7.456 1 13.12 1 19.36c0 5.088 3.072 8.064 6.624 8.064 3.36 0 5.856-2.688 5.856-5.856 0-3.168-2.208-5.472-5.088-5.472-.576 0-1.344.096-1.536.192.48-3.264 3.552-7.104 6.624-9.024L9.352 4zm16.512 0c-4.8 3.456-8.256 9.12-8.256 15.36 0 5.088 3.072 8.064 6.624 8.064 3.264 0 5.856-2.688 5.856-5.856 0-3.168-2.304-5.472-5.184-5.472-.576 0-1.248.096-1.44.192.48-3.264 3.456-7.104 6.528-9.024L25.864 4z" />
+                  </svg>
+                  <p className="pl-6">
+                    "TrackPro has transformed the way we manage our remote teams. The productivity insights have been invaluable for our business operations."
+                  </p>
+                </CardItem>
+              </CardBody>
+            </CardContainer>
 
             {/* Testimonial 2 */}
-            <motion.div 
-              className="bg-card p-6 rounded-xl shadow-md border hover:shadow-xl transition-shadow duration-300"
-              variants={fadeIn}
-              whileHover={{ y: -5 }}
-              transition={{ type: "spring", stiffness: 400 }}
-            >
-              <div className="flex items-center mb-4">
-                <div className="h-12 w-12 relative rounded-full overflow-hidden">
-                  <img
-                    src="https://images.unsplash.com/photo-1438761681033-6461ffad8d80"
-                    alt="Profile"
-                    className="rounded-full object-cover h-full w-full"
-                    width={48}
-                    height={48}
-                  />
+            <CardContainer className="w-full" containerClassName="w-full">
+              <CardBody className="p-6 group">
+                <div className="flex items-center mb-4">
+                  <CardItem translateZ={20} className="h-12 w-12 relative rounded-full overflow-hidden">
+                    <img
+                      src="https://images.unsplash.com/photo-1438761681033-6461ffad8d80"
+                      alt="Profile"
+                      className="rounded-full object-cover h-full w-full"
+                      width={48}
+                      height={48}
+                    />
+                  </CardItem>
+                  <CardItem translateZ={20} className="ml-4">
+                    <h4 className="text-lg font-medium text-foreground">Sarah Johnson</h4>
+                    <p className="text-muted-foreground">HR Director, Global Inc.</p>
+                  </CardItem>
                 </div>
-                <div className="ml-4">
-                  <h4 className="text-lg font-medium text-foreground">Sarah Johnson</h4>
-                  <p className="text-muted-foreground">HR Director, Global Inc.</p>
-                </div>
-              </div>
-              <div className="relative">
-                <svg className="absolute top-0 left-0 h-8 w-8 text-primary/20 -mt-3 -ml-3" fill="currentColor" viewBox="0 0 32 32">
-                  <path d="M9.352 4C4.456 7.456 1 13.12 1 19.36c0 5.088 3.072 8.064 6.624 8.064 3.36 0 5.856-2.688 5.856-5.856 0-3.168-2.208-5.472-5.088-5.472-.576 0-1.344.096-1.536.192.48-3.264 3.552-7.104 6.624-9.024L9.352 4zm16.512 0c-4.8 3.456-8.256 9.12-8.256 15.36 0 5.088 3.072 8.064 6.624 8.064 3.264 0 5.856-2.688 5.856-5.856 0-3.168-2.304-5.472-5.184-5.472-.576 0-1.248.096-1.44.192.48-3.264 3.456-7.104 6.528-9.024L25.864 4z" />
-                </svg>
-                <p className="text-muted-foreground pl-6">
-                  "The attendance tracking and reporting features have simplified our HR processes dramatically. I highly recommend TrackPro."
-                </p>
-              </div>
-            </motion.div>
+                <CardItem
+                  translateZ={20} 
+                  className="relative text-muted-foreground"
+                >
+                  <svg className="absolute top-0 left-0 h-8 w-8 text-primary/20 -mt-3 -ml-3" fill="currentColor" viewBox="0 0 32 32">
+                    <path d="M9.352 4C4.456 7.456 1 13.12 1 19.36c0 5.088 3.072 8.064 6.624 8.064 3.36 0 5.856-2.688 5.856-5.856 0-3.168-2.208-5.472-5.088-5.472-.576 0-1.344.096-1.536.192.48-3.264 3.552-7.104 6.624-9.024L9.352 4zm16.512 0c-4.8 3.456-8.256 9.12-8.256 15.36 0 5.088 3.072 8.064 6.624 8.064 3.264 0 5.856-2.688 5.856-5.856 0-3.168-2.304-5.472-5.184-5.472-.576 0-1.248.096-1.44.192.48-3.264 3.456-7.104 6.528-9.024L25.864 4z" />
+                  </svg>
+                  <p className="pl-6">
+                    "The attendance tracking and reporting features have simplified our HR processes dramatically. I highly recommend TrackPro."
+                  </p>
+                </CardItem>
+              </CardBody>
+            </CardContainer>
 
             {/* Testimonial 3 */}
-            <motion.div 
-              className="bg-card p-6 rounded-xl shadow-md border hover:shadow-xl transition-shadow duration-300"
-              variants={fadeIn}
-              whileHover={{ y: -5 }}
-              transition={{ type: "spring", stiffness: 400 }}
-            >
-              <div className="flex items-center mb-4">
-                <div className="h-12 w-12 relative rounded-full overflow-hidden">
-                  <img
-                    src="/images/worker.jpeg"
-                    alt="Profile"
-                    className="rounded-full object-cover h-full w-full"
-                    width={48}
-                    height={48}
-                  />
+            <CardContainer className="w-full" containerClassName="w-full">
+              <CardBody className="p-6 group">
+                <div className="flex items-center mb-4">
+                  <CardItem translateZ={20} className="h-12 w-12 relative rounded-full overflow-hidden">
+                    <img
+                      src="/images/worker.jpeg"
+                      alt="Profile"
+                      className="rounded-full object-cover h-full w-full"
+                      width={48}
+                      height={48}
+                    />
+                  </CardItem>
+                  <CardItem translateZ={20} className="ml-4">
+                    <h4 className="text-lg font-medium text-foreground">Michael Lee</h4>
+                    <p className="text-muted-foreground">Team Lead, Innovate Solutions</p>
+                  </CardItem>
                 </div>
-                <div className="ml-4">
-                  <h4 className="text-lg font-medium text-foreground">Michael Lee</h4>
-                  <p className="text-muted-foreground">Team Lead, Innovate Solutions</p>
-                </div>
-              </div>
-              <div className="relative">
-                <svg className="absolute top-0 left-0 h-8 w-8 text-primary/20 -mt-3 -ml-3" fill="currentColor" viewBox="0 0 32 32">
-                  <path d="M9.352 4C4.456 7.456 1 13.12 1 19.36c0 5.088 3.072 8.064 6.624 8.064 3.36 0 5.856-2.688 5.856-5.856 0-3.168-2.208-5.472-5.088-5.472-.576 0-1.344.096-1.536.192.48-3.264 3.552-7.104 6.624-9.024L9.352 4zm16.512 0c-4.8 3.456-8.256 9.12-8.256 15.36 0 5.088 3.072 8.064 6.624 8.064 3.264 0 5.856-2.688 5.856-5.856 0-3.168-2.304-5.472-5.184-5.472-.576 0-1.248.096-1.44.192.48-3.264 3.456-7.104 6.528-9.024L25.864 4z" />
-                </svg>
-                <p className="text-muted-foreground pl-6">
-                  "Thanks to TrackPro, our team's productivity has increased by 30%. The insights we've gained have helped us optimize our workflow."
-                </p>
-              </div>
-            </motion.div>
+                <CardItem
+                  translateZ={20} 
+                  className="relative text-muted-foreground"
+                >
+                  <svg className="absolute top-0 left-0 h-8 w-8 text-primary/20 -mt-3 -ml-3" fill="currentColor" viewBox="0 0 32 32">
+                    <path d="M9.352 4C4.456 7.456 1 13.12 1 19.36c0 5.088 3.072 8.064 6.624 8.064 3.36 0 5.856-2.688 5.856-5.856 0-3.168-2.208-5.472-5.088-5.472-.576 0-1.344.096-1.536.192.48-3.264 3.552-7.104 6.624-9.024L9.352 4zm16.512 0c-4.8 3.456-8.256 9.12-8.256 15.36 0 5.088 3.072 8.064 6.624 8.064 3.264 0 5.856-2.688 5.856-5.856 0-3.168-2.304-5.472-5.184-5.472-.576 0-1.248.096-1.44.192.48-3.264 3.456-7.104 6.528-9.024L25.864 4z" />
+                  </svg>
+                  <p className="pl-6">
+                    "Thanks to TrackPro, our team's productivity has increased by 30%. The insights we've gained have helped us optimize our workflow."
+                  </p>
+                </CardItem>
+              </CardBody>
+            </CardContainer>
           </motion.div>
         </div>
       </motion.div>
 
       {/* CTA Section */}
       <motion.div 
-        className="bg-primary"
+        className="bg-gradient-to-r from-primary to-purple-600 overflow-hidden relative"
         initial="hidden"
         whileInView="visible"
         viewport={{ once: true }}
         variants={fadeIn}
       >
-        <div className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:py-16 lg:px-8 lg:flex lg:items-center lg:justify-between">
+        <div className="absolute inset-0 bg-grid-white/[0.05] bg-[length:20px_20px] pointer-events-none"></div>
+        <div className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:py-16 lg:px-8 lg:flex lg:items-center lg:justify-between relative z-10">
           <motion.h2 
-            className="text-3xl font-extrabold tracking-tight text-primary-foreground sm:text-4xl"
+            className="text-3xl font-extrabold tracking-tight text-white sm:text-4xl"
             variants={fadeInFromLeft}
           >
             <span className="block">Ready to boost your team's productivity?</span>
-            <span className="block text-primary-foreground/80">Start your free trial today.</span>
+            <span className="block text-white/80">Start your free trial today.</span>
           </motion.h2>
           <motion.div 
             className="mt-8 flex lg:mt-0 lg:flex-shrink-0 space-x-4"
             variants={fadeInFromRight}
           >
-            <Button size="lg" variant="secondary" asChild className="relative overflow-hidden group">
+            <PulseButton asChild className="bg-white/10 h-12 rounded-full">
               <a href="/signup">
-                <span className="relative z-10">Get started</span>
-                <motion.span 
-                  className="absolute inset-0 bg-white/10" 
-                  initial={{ x: "-100%" }}
-                  whileHover={{ x: 0 }}
-                  transition={{ type: "tween", ease: "easeInOut", duration: 0.3 }}
-                />
+                Get started
               </a>
-            </Button>
-            <Button size="lg" variant="outline" className="bg-primary-foreground/10 text-primary-foreground border-primary-foreground/20 hover:bg-primary-foreground/20" asChild>
+            </PulseButton>
+            <ShimmerButton asChild className="bg-transparent border border-white/30 text-white h-12">
               <a href="/contact">Contact sales</a>
-            </Button>
+            </ShimmerButton>
           </motion.div>
         </div>
       </motion.div>

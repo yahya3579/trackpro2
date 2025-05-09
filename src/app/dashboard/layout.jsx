@@ -10,7 +10,11 @@ export default function DashboardLayout({ children }) {
 
   return (
     <AuthCheck>
-      <div className="h-screen flex flex-col md:flex-row bg-gradient-to-br from-background to-background/95 text-foreground overflow-hidden">
+      <div className="h-screen flex flex-col md:flex-row bg-background text-foreground overflow-hidden relative">
+        {/* Background pattern */}
+        <div className="absolute inset-0 bg-grid-slate-100/[0.03] bg-[length:30px_30px] pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-background to-purple-500/5 pointer-events-none" />
+        
         {/* Mobile sidebar overlay */}
         <div
           className={`
@@ -33,18 +37,19 @@ export default function DashboardLayout({ children }) {
 
         {/* Desktop sidebar */}
         <div className="hidden md:block relative z-20">
-          <Sidebar className="border-r shadow-sm" />
+          <Sidebar className="shadow-sm" />
         </div>
 
         {/* Content area */}
-        <div className="flex flex-col flex-1 w-full md:w-0 min-h-screen overflow-hidden">
+        <div className="flex flex-col flex-1 w-full md:w-0 min-h-screen overflow-hidden relative">
           <Header onMenuClick={() => setSidebarOpen(true)} />
-          <main className="flex-1 overflow-auto p-6 bg-muted/20">
-            <div className="container mx-auto max-w-7xl">
+          <main className="flex-1 overflow-auto p-6 bg-muted/5 relative">
+            <div className="absolute inset-0 bg-grid-slate-100/[0.02] bg-[length:20px_20px] pointer-events-none" />
+            <div className="container mx-auto max-w-7xl relative z-10">
               {children}
             </div>
           </main>
-          <footer className="border-t py-3 px-6 text-center text-xs text-muted-foreground bg-card/50">
+          <footer className="border-t py-3 px-6 text-center text-xs text-muted-foreground bg-card/50 backdrop-blur-sm">
             <p>© {new Date().getFullYear()} TrackPro. All rights reserved.</p>
           </footer>
         </div>

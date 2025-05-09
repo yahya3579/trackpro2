@@ -3,10 +3,22 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
+import { motion } from "framer-motion";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Spotlight } from "@/components/ui/spotlight";
+import { PulseButton, GradientButton } from "@/components/ui/aceternity-button";
+import { CardContainer, CardBody, CardItem } from "@/components/ui/3d-card";
+
+// Animation variants
+const fadeIn = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { 
+    opacity: 1, 
+    y: 0,
+    transition: { duration: 0.6 }
+  }
+};
 
 export default function SignupPage() {
   const router = useRouter();
@@ -74,95 +86,126 @@ export default function SignupPage() {
   };
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-slate-50 p-4">
-      <div className="w-full max-w-md">
-        <Card className="w-full">
-          <CardHeader className="space-y-1">
-            <div className="flex justify-center mb-2">
-              <div className="rounded-full bg-blue-600 p-2">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M12 2L20 10L16 14L12 18L4 10L8 6L12 2Z" fill="white" />
-                </svg>
-              </div>
-            </div>
-            <CardTitle className="text-2xl font-bold text-center">Create an Account</CardTitle>
-            <CardDescription className="text-center">
-              Enter your organization details to create your TrackPro account
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {error && (
-              <div className="bg-red-50 text-red-500 p-3 rounded-md text-sm">
-                {error}
-              </div>
-            )}
-            <form onSubmit={handleSubmit}>
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="name">Organization Name</Label>
-                  <Input 
-                    id="name" 
-                    name="name" 
-                    placeholder="Acme Inc." 
-                    value={formData.name}
-                    onChange={handleChange}
-                    required 
-                  />
+    <div className="relative flex min-h-screen flex-col items-center justify-center bg-background overflow-hidden p-4">
+      <Spotlight
+        className="-top-40 left-0 md:left-60 md:-top-20"
+        fill="purple"
+      />
+      
+      <div className="relative z-10 w-full max-w-md">
+        <motion.div
+          initial="hidden"
+          animate="visible"
+          variants={fadeIn}
+          className="w-full"
+        >
+          <CardContainer className="w-full h-full">
+            <CardBody className="relative bg-card/80 backdrop-blur-sm border rounded-xl shadow-lg p-6">
+              <CardItem translateZ={50} className="mb-6 text-center">
+                <div className="flex justify-center mb-4">
+                  <div className="rounded-full bg-gradient-to-r from-primary to-purple-600 p-3">
+                    <svg width="30" height="30" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path d="M12 2L20 10L16 14L12 18L4 10L8 6L12 2Z" fill="white" />
+                    </svg>
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input 
-                    id="email" 
-                    name="email" 
-                    type="email" 
-                    placeholder="admin@example.com" 
-                    value={formData.email}
-                    onChange={handleChange}
-                    required 
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="password">Password</Label>
-                  <Input 
-                    id="password" 
-                    name="password" 
-                    type="password" 
-                    value={formData.password}
-                    onChange={handleChange}
-                    required 
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="confirmPassword">Confirm Password</Label>
-                  <Input 
-                    id="confirmPassword" 
-                    name="confirmPassword" 
-                    type="password" 
-                    value={formData.confirmPassword}
-                    onChange={handleChange}
-                    required 
-                  />
-                </div>
-                <Button 
-                  type="submit" 
-                  className="w-full bg-blue-600 hover:bg-blue-700" 
-                  disabled={loading}
-                >
-                  {loading ? 'Creating Account...' : 'Create Account'}
-                </Button>
-              </div>
-            </form>
-          </CardContent>
-          <CardFooter className="flex justify-center">
-            <p className="text-sm text-gray-600">
-              Already have an account?{" "}
-              <Link href="/login" className="text-blue-600 hover:underline">
-                Sign in
-              </Link>
-            </p>
-          </CardFooter>
-        </Card>
+                <h1 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-primary to-purple-600">
+                  Create Account
+                </h1>
+                <p className="mt-2 text-muted-foreground">
+                  Enter your organization details to create your TrackPro account
+                </p>
+              </CardItem>
+
+              {error && (
+                <CardItem translateZ={30} className="w-full mb-4">
+                  <div className="bg-red-50 text-red-500 p-3 rounded-md text-sm border border-red-200">
+                    {error}
+                  </div>
+                </CardItem>
+              )}
+
+              <form onSubmit={handleSubmit}>
+                <CardItem translateZ={30} className="w-full space-y-5">
+                  <div className="space-y-2">
+                    <Label htmlFor="name" className="text-foreground font-medium">Organization Name</Label>
+                    <Input 
+                      id="name" 
+                      name="name" 
+                      placeholder="Acme Inc." 
+                      value={formData.name}
+                      onChange={handleChange}
+                      required 
+                      className="border-muted-foreground/20 focus:border-primary/50 h-11 transition-all duration-200 bg-card"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="email" className="text-foreground font-medium">Email</Label>
+                    <Input 
+                      id="email" 
+                      name="email" 
+                      type="email" 
+                      placeholder="admin@example.com" 
+                      value={formData.email}
+                      onChange={handleChange}
+                      required
+                      className="border-muted-foreground/20 focus:border-primary/50 h-11 transition-all duration-200 bg-card"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="password" className="text-foreground font-medium">Password</Label>
+                    <Input 
+                      id="password" 
+                      name="password" 
+                      type="password" 
+                      value={formData.password}
+                      onChange={handleChange}
+                      required
+                      className="border-muted-foreground/20 focus:border-primary/50 h-11 transition-all duration-200 bg-card"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="confirmPassword" className="text-foreground font-medium">Confirm Password</Label>
+                    <Input 
+                      id="confirmPassword" 
+                      name="confirmPassword" 
+                      type="password" 
+                      value={formData.confirmPassword}
+                      onChange={handleChange}
+                      required
+                      className="border-muted-foreground/20 focus:border-primary/50 h-11 transition-all duration-200 bg-card"
+                    />
+                  </div>
+                </CardItem>
+
+                <CardItem translateZ={30} className="w-full mt-6">
+                  <GradientButton 
+                    type="submit" 
+                    className="w-full h-12"
+                    disabled={loading}
+                  >
+                    {loading ? 'Creating Account...' : 'Create Account'}
+                  </GradientButton>
+                </CardItem>
+              </form>
+
+              <CardItem translateZ={20} className="w-full mt-6 text-center">
+                <p className="text-sm text-muted-foreground">
+                  Already have an account?{" "}
+                  <Link href="/login" className="text-primary hover:text-primary/80 font-medium transition-colors">
+                    Sign in
+                  </Link>
+                </p>
+              </CardItem>
+            </CardBody>
+          </CardContainer>
+        </motion.div>
       </div>
+      
+      <div className="absolute inset-0 bg-grid-white/[0.02] bg-[length:30px_30px] pointer-events-none"></div>
     </div>
   );
 } 

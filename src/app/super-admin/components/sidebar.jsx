@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { motion } from "framer-motion";
 import { 
   LayoutDashboard,
   Building,
@@ -17,12 +18,20 @@ import {
   LogOut,
   User,
   ChevronDown,
-  ArrowLeft
+  ArrowLeft,
+  AlertTriangle,
+  Plus
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { restoreOrgUserData } from "@/lib/user-storage";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 const sidebarItems = [
   {
@@ -75,6 +84,7 @@ export function Sidebar({ className }) {
     name: 'Super Admin',
     email: 'admin@trackpro.com'
   });
+  const [alertsCount, setAlertsCount] = useState(3);
 
   useEffect(() => {
     // Get user data from localStorage
@@ -108,46 +118,123 @@ export function Sidebar({ className }) {
     router.push('/dashboard');
   };
 
+  // Function to render sidebar item based on collapsed state
+  const SidebarItem = ({ item, isActive }) => {
+    if (collapsed) {
+      return (
+        <TooltipProvider delayDuration={100}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Link
+                href={item.href}
+                className={cn(
+                  "relative flex items-center justify-center w-10 h-10 mx-auto rounded-lg transition-all duration-300",
+                  isActive 
+                    ? "bg-blue-600 text-white shadow-[0_0_15px_rgba(0,100,255,0.5)]"
+                    : "text-white/50 hover:text-white hover:bg-white/10"
+                )}
+              >
+                <item.icon className="h-5 w-5" />
+                {isActive && (
+                  <motion.div
+                    layoutId="sidebar-indicator"
+                    className="absolute inset-0 rounded-lg border border-blue-400/50 z-[-1]"
+                    transition={{ type: "spring", duration: 0.5 }}
+                  />
+                )}
+              </Link>
+            </TooltipTrigger>
+            <TooltipContent side="right" className="bg-black/90 text-white border-blue-900">
+              <p>{item.title}</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      );
+    }
+    
+    return (
+      <Link
+        href={item.href}
+        className={cn(
+          "relative flex items-center gap-3 rounded-lg pl-3 pr-3 py-2 text-sm transition-all duration-200 group",
+          isActive 
+            ? "bg-blue-600 text-white font-medium shadow-[0_0_15px_rgba(0,100,255,0.3)]"
+            : "text-white/50 hover:text-white hover:bg-white/10"
+        )}
+      >
+        <span className="flex items-center justify-center w-7 h-7">
+          <item.icon className={cn("h-5 w-5 transition-transform group-hover:scale-110")} />
+        </span>
+        <span className="transition-transform group-hover:translate-x-1">{item.title}</span>
+        {isActive && (
+          <motion.div
+            layoutId="sidebar-indicator"
+            className="absolute inset-0 rounded-lg border border-blue-400/50 z-[-1]"
+            transition={{ type: "spring", duration: 0.5 }}
+          />
+        )}
+      </Link>
+    );
+  };
+
   return (
     <div className={cn(
-      "flex flex-col h-screen bg-slate-900 border-r border-slate-800 relative transition-all duration-300 ease-in-out text-white",
-      collapsed ? "w-[80px]" : "w-[260px]",
+      "flex flex-col h-screen bg-black/80 backdrop-blur-md border-r border-blue-900/30 transition-all duration-300 ease-in-out z-20 relative",
+      collapsed ? "w-[70px]" : "w-[260px]",
       className
     )}>
+      {/* Glow effects */}
+      <div className="absolute top-0 left-0 right-0 h-20 bg-[radial-gradient(ellipse_80%_50%_at_50%_0%,rgba(0,100,255,0.15),transparent)] pointer-events-none" />
+      <div className="absolute bottom-0 left-0 right-0 h-20 bg-[radial-gradient(ellipse_80%_50%_at_50%_100%,rgba(0,100,255,0.1),transparent)] pointer-events-none" />
+      
       {/* Logo and collapse button */}
-      <div className="flex items-center h-16 px-4 border-b border-slate-800">
+      <div className="flex justify-between items-center h-16 px-4 border-b border-blue-900/30 relative">
         {!collapsed && (
-          <div className="flex items-center gap-2">
-            <div className="rounded-sm bg-blue-600 p-1">
-              <Shield className="h-6 w-6 text-white" />
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="flex items-center gap-3"
+          >
+            <div className="rounded-md bg-gradient-to-br from-blue-500 to-indigo-700 p-1.5 shadow-[0_0_15px_rgba(0,100,255,0.5)]">
+              <Shield className="h-5 w-5 text-white" />
             </div>
             <div>
-              <span className="font-bold text-lg">TrackPro</span>
-              <span className="text-xs block text-slate-400">Super Admin</span>
+              <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-indigo-300">TrackPro</span>
+              <span className="text-xs block text-blue-300">Super Admin</span>
             </div>
-          </div>
+          </motion.div>
         )}
+        
         {collapsed && (
-          <div className="rounded-sm bg-blue-600 p-1 mx-auto">
-            <Shield className="h-6 w-6 text-white" />
-          </div>
+          <motion.div 
+            initial={{ scale: 0.8 }}
+            animate={{ scale: 1 }}
+            className="mx-auto"
+          >
+            <div className="rounded-md bg-gradient-to-br from-blue-500 to-indigo-700 p-1.5 shadow-[0_0_15px_rgba(0,100,255,0.5)]">
+              <Shield className="h-5 w-5 text-white" />
+            </div>
+          </motion.div>
         )}
-        <Button 
-          variant="ghost" 
-          size="icon" 
+        
+        <button
           onClick={() => setCollapsed(!collapsed)}
           className={cn(
-            "absolute right-2 top-4 rounded-full p-1 text-slate-400 hover:text-white hover:bg-slate-800",
-            collapsed && "right-[-12px] bg-slate-900 border border-slate-800 shadow-sm"
+            "rounded-full p-1.5 text-blue-300 hover:text-white hover:bg-white/10 transition-all",
+            collapsed ? "absolute -right-3 top-7 bg-black border border-blue-900/50 shadow-lg" : ""
           )}
         >
-          <ChevronDown className={cn("h-4 w-4 transition-transform", collapsed ? "rotate-90" : "rotate-270")} />
-          <span className="sr-only">Toggle Sidebar</span>
-        </Button>
+          <motion.div
+            animate={{ rotate: collapsed ? 180 : 0 }}
+            transition={{ duration: 0.3 }}
+          >
+            <ChevronDown className="h-4 w-4" />
+          </motion.div>
+        </button>
       </div>
 
       {/* Back to dashboard link */}
-      <div className="px-4 py-3 border-b border-slate-800">
+      <div className="px-4 py-3 border-b border-blue-900/30">
         <Link
           href="#"
           onClick={(e) => {
@@ -155,7 +242,7 @@ export function Sidebar({ className }) {
             handleBackToDashboard();
           }}
           className={cn(
-            "flex items-center gap-2 text-sm text-slate-400 hover:text-white rounded-md py-1",
+            "flex items-center gap-2 text-sm text-blue-300 hover:text-white rounded-md py-1 transition-colors",
             collapsed && "justify-center"
           )}
         >
@@ -165,52 +252,61 @@ export function Sidebar({ className }) {
       </div>
 
       {/* Nav items */}
-      <div className="flex-1 overflow-auto py-2">
-        <nav className="grid gap-1 px-2">
-          {sidebarItems.map((item, index) => (
-            <Link
-              key={index}
-              href={item.href}
-              className={cn(
-                "flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all",
-                pathname === item.href 
-                  ? "bg-blue-600/20 text-blue-400 font-medium" 
-                  : "text-slate-400 hover:text-white hover:bg-slate-800",
-                collapsed && "justify-center px-0"
-              )}
-            >
-              <item.icon className={cn("h-5 w-5 shrink-0")} />
-              {!collapsed && <span>{item.title}</span>}
-            </Link>
+      <div className="flex-1 overflow-auto py-3 px-2">
+        <nav className="grid gap-1.5">
+          {sidebarItems.map((item) => (
+            <SidebarItem key={item.href} item={item} isActive={pathname === item.href} />
           ))}
         </nav>
       </div>
 
       {/* Alert status */}
-      <div className="px-4 py-2 border-t border-slate-800">
-        <div className={cn(
-          "rounded-md py-2 px-3 flex items-center gap-3 text-sm bg-amber-950/30 text-amber-400 border border-amber-950",
-          collapsed && "justify-center px-2"
-        )}>
-          <AlertOctagon className="h-4 w-4 shrink-0" />
-          {!collapsed && <span>3 system alerts</span>}
+      {alertsCount > 0 && (
+        <div className="px-4 py-3 border-t border-blue-900/30">
+          <motion.div 
+            initial={{ scale: 0.95 }}
+            animate={{ scale: 1 }}
+            transition={{ 
+              repeat: Infinity, 
+              repeatType: "reverse", 
+              duration: 1.5 
+            }}
+            className={cn(
+              "relative rounded-md py-2 px-3 flex items-center gap-3 text-sm overflow-hidden",
+              collapsed ? "justify-center px-2" : ""
+            )}
+          >
+            <div className="absolute inset-0 bg-amber-950/30 backdrop-blur-sm border border-amber-500/30 rounded-md z-[-1]" />
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_120%,rgba(255,200,0,0.1),transparent)] z-[-1]" />
+            
+            <motion.div
+              animate={{ rotate: [0, 10, 0] }}
+              transition={{ repeat: Infinity, duration: 2 }}
+            >
+              <AlertTriangle className="h-4 w-4 text-amber-500" />
+            </motion.div>
+            {!collapsed && (
+              <span className="text-amber-300 font-medium">{alertsCount} system alerts</span>
+            )}
+          </motion.div>
         </div>
-      </div>
+      )}
 
       {/* User profile section */}
-      <div className="mt-auto border-t border-slate-800 p-4">
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-2">
-            <div className="rounded-full bg-slate-800 flex items-center justify-center w-8 h-8">
-              <User className="h-4 w-4 text-slate-300" />
+      <div className="mt-auto border-t border-blue-900/30 p-4">
+        <div className={collapsed ? "flex justify-center" : "flex items-center gap-3"}>
+          <div className="rounded-full bg-gradient-to-br from-blue-800 to-indigo-900 p-0.5 shadow-[0_0_10px_rgba(0,100,255,0.3)]">
+            <div className="rounded-full bg-black/50 flex items-center justify-center w-8 h-8">
+              <User className="h-4 w-4 text-blue-300" />
             </div>
-            {!collapsed && (
-              <div>
-                <p className="text-sm font-medium">{userData.name}</p>
-                <p className="text-xs text-slate-400">{userData.email}</p>
-              </div>
-            )}
           </div>
+          
+          {!collapsed && (
+            <div className="truncate">
+              <p className="text-sm font-medium text-white truncate">{userData.name}</p>
+              <p className="text-xs text-blue-300 truncate">{userData.email}</p>
+            </div>
+          )}
         </div>
       </div>
     </div>
