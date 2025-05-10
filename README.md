@@ -1,39 +1,93 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# TrackPro - Employee Monitoring and Management System
+
+TrackPro is a comprehensive employee monitoring and management system built with Next.js, React, and MySQL. It provides organizations with tools to track employee activity, manage time, and boost productivity.
+
+## Features
+
+- **User Authentication** - Secure login and registration system
+- **Dashboard Overview** - Visual representation of employee activities and statistics
+- **Employee Management**
+  - Invite employees via email
+  - Track employee information and status
+  - Manage employee permissions and roles
+- **Activity Monitoring** - Track applications usage, website visits, and productivity
+- **Time Tracking** - Record working hours, breaks, and attendance
+- **Screenshots & Timelapse** - Capture screen activity for accountability
+- **Reporting System** - Generate detailed reports on employee performance
+
+## Employee Invitation System
+
+TrackPro includes a comprehensive employee invitation system:
+
+1. **Sending Invitations**
+   - Admins can invite employees via the dedicated invitation page
+   - Required information includes name, email, and optional details like position and department
+   - System generates a secure invitation token valid for 7 days
+
+2. **Email Notifications**
+   - Employees receive personalized invitation emails
+   - Emails include a secure link to accept the invitation
+   - Organization branding is included in the email
+
+3. **Accepting Invitations**
+   - Employees click on the link in their email
+   - They land on a dedicated acceptance page
+   - Once accepted, their status changes from "Invited" to "Active"
+
+4. **Management**
+   - Admins can track invitation status in the employees dashboard
+   - Invitations can be resent if needed
+   - Expired invitations can be managed through the employee detail page
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+- Node.js 18+
+- MySQL 8+
+- npm or yarn
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Installation
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+1. Clone the repository:
+   ```
+   git clone https://github.com/yourusername/trackpro.git
+   cd trackpro
+   ```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+2. Install dependencies:
+   ```
+   npm install
+   ```
 
-## Learn More
+3. Set up environment variables:
+   - Copy `.env.example` to `.env.local`
+   - Configure database connection and other settings
 
-To learn more about Next.js, take a look at the following resources:
+4. Set up the database:
+   ```
+   npm run db:setup
+   ```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+5. Run the development server:
+   ```
+   npm run dev
+   ```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+6. Access the application at `http://localhost:3000`
 
-## Deploy on Vercel
+## Built With
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- [Next.js](https://nextjs.org/) - React framework
+- [React](https://reactjs.org/) - UI library
+- [MySQL](https://mysql.com/) - Database
+- [Tailwind CSS](https://tailwindcss.com/) - CSS framework
+- [shadcn/ui](https://ui.shadcn.com/) - UI components
+- [Aceternity UI](https://ui.aceternity.com/) - Modern UI components
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
 
 
 

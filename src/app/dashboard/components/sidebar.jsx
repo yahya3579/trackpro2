@@ -46,6 +46,11 @@ const mainItems = [
     icon: Home
   },
   {
+    title: "Employees",
+    href: "/dashboard/employees",
+    icon: User
+  },
+  {
     title: "Activity Monitoring",
     href: "/dashboard/activity-monitoring",
     icon: Activity
