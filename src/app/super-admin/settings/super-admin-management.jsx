@@ -62,7 +62,7 @@ export function SuperAdminManagement() {
       const token = localStorage.getItem("token");
       console.log("Fetching super admin list with token:", token ? "Valid token" : "No token");
       
-      const response = await fetch("http://localhost:5000/api/admin/org-super-admins", {
+      const response = await fetch("http://localhost:3000/api/admin/org-super-admins", {
         headers: {
           "x-auth-token": token,
         },
@@ -96,7 +96,7 @@ export function SuperAdminManagement() {
     setIsGranting(true);
     try {
       const token = localStorage.getItem("token");
-      const response = await fetch("http://localhost:5000/api/admin/grant-super-admin", {
+      const response = await fetch("http://localhost:3000/api/admin/grant-super-admin", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -155,7 +155,7 @@ export function SuperAdminManagement() {
       }
       
       // First verify the super admin exists
-      const checkResponse = await fetch(`http://localhost:5000/api/admin/org-super-admins`, {
+      const checkResponse = await fetch(`http://localhost:3000/api/admin/org-super-admins`, {
         headers: {
           "x-auth-token": token,
         },
@@ -175,7 +175,7 @@ export function SuperAdminManagement() {
       console.log(`Verified super admin exists: ${email}`);
 
       // Now attempt to revoke access
-      const response = await fetch("http://localhost:5000/api/admin/revoke-super-admin", {
+      const response = await fetch("http://localhost:3000/api/admin/revoke-super-admin", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

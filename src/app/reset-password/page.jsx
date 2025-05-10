@@ -48,7 +48,7 @@ export default function ResetPasswordPage() {
       }
 
       try {
-        const response = await fetch('http://localhost:5000/api/auth/verify-reset-token', {
+        const response = await fetch('http://localhost:3000/api/auth/verify-reset-token', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

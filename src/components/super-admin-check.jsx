@@ -33,7 +33,7 @@ export default function SuperAdminCheck({ children }) {
         // If not a direct super admin, check for org owner with super admin access
         if (user.role === 'organization_admin') {
           // Check with server if the organization admin has super admin access
-          const response = await fetch('http://localhost:5000/api/admin/verify-org-admin', {
+          const response = await fetch('http://localhost:3000/api/admin/verify-org-admin', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -49,7 +49,7 @@ export default function SuperAdminCheck({ children }) {
             // Auto-login as super admin
             
             // Fetch super admin details using organization credentials
-            const superAdminResponse = await fetch("http://localhost:5000/api/auth/super-admin-login", {
+            const superAdminResponse = await fetch("http://localhost:3000/api/auth/super-admin-login", {
               method: "POST",
               headers: {
                 "Content-Type": "application/json",

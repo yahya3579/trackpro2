@@ -54,7 +54,7 @@ export function SuperAdminLoginModal({ isOpen, onClose }) {
         // For organization_admin role, check if they have super admin privileges
         if (userData.role === 'organization_admin') {
           // Check if user is an organization owner with super admin access
-          const response = await fetch("http://localhost:5000/api/admin/verify-org-admin", {
+          const response = await fetch("http://localhost:3000/api/admin/verify-org-admin", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
@@ -72,7 +72,7 @@ export function SuperAdminLoginModal({ isOpen, onClose }) {
             saveOrgUserData();
             
             // Fetch super admin details using organization credentials
-            const superAdminResponse = await fetch("http://localhost:5000/api/auth/super-admin-login", {
+            const superAdminResponse = await fetch("http://localhost:3000/api/auth/super-admin-login", {
               method: "POST",
               headers: {
                 "Content-Type": "application/json",
@@ -147,7 +147,7 @@ export function SuperAdminLoginModal({ isOpen, onClose }) {
           // Check if the attempted login matches the current organization email
           if (user.email === formData.email) {
             try {
-              const verifyResponse = await fetch("http://localhost:5000/api/admin/verify-org-admin", {
+              const verifyResponse = await fetch("http://localhost:3000/api/admin/verify-org-admin", {
                 method: "POST",
                 headers: {
                   "Content-Type": "application/json",
@@ -171,7 +171,7 @@ export function SuperAdminLoginModal({ isOpen, onClose }) {
       // Save the original organization user data before switching to super admin
       saveOrgUserData();
 
-      const response = await fetch("http://localhost:5000/api/auth/super-admin-login", {
+      const response = await fetch("http://localhost:3000/api/auth/super-admin-login", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

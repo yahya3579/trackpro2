@@ -143,7 +143,7 @@ export function Sidebar({ className }) {
       const token = localStorage.getItem('token');
       if (!token) return;
 
-      const response = await fetch('http://localhost:5000/api/users/profile', {
+      const response = await fetch('http://localhost:3000/api/users/profile', {
         method: 'GET',
         headers: {
           'x-auth-token': token,
