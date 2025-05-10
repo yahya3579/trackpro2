@@ -31,6 +31,13 @@ import {
 } from "@/components/ui/card";
 import { BackgroundGradient } from "@/components/ui/background-gradient";
 import { TextGenerateEffect } from "@/components/ui/text-generate-effect";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export default function InviteEmployeePage() {
   const router = useRouter();
@@ -39,7 +46,8 @@ export default function InviteEmployeePage() {
   const [invitedEmployee, setInvitedEmployee] = useState(null);
   
   const [formData, setFormData] = useState({
-    name: "",
+    first_name: "",
+    last_name: "",
     email: "",
     position: "",
     department: "",
@@ -51,13 +59,17 @@ export default function InviteEmployeePage() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
+  const handleSelectChange = (name, value) => {
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
 
     try {
       const token = localStorage.getItem("token");
-      const response = await fetch("/api/employees", {
+      const response = await fetch("/api/employees/invite", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -74,7 +86,7 @@ export default function InviteEmployeePage() {
 
       setInvitedEmployee(data.employee);
       setShowSuccess(true);
-      toast.success(`${formData.name} was invited successfully!`);
+      toast.success(`${formData.first_name} ${formData.last_name} was invited successfully!`);
     } catch (error) {
       toast.error(`Error: ${error.message}`);
     } finally {
@@ -86,13 +98,27 @@ export default function InviteEmployeePage() {
     setShowSuccess(false);
     setInvitedEmployee(null);
     setFormData({
-      name: "",
+      first_name: "",
+      last_name: "",
       email: "",
       position: "",
       department: "",
       phone: ""
     });
   };
+
+  const departments = [
+    "Engineering",
+    "Product",
+    "Design",
+    "Marketing",
+    "Sales",
+    "Finance",
+    "Human Resources",
+    "Operations",
+    "Analytics",
+    "Support"
+  ];
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -123,21 +149,41 @@ export default function InviteEmployeePage() {
             </CardHeader>
             <form onSubmit={handleSubmit}>
               <CardContent className="space-y-5">
-                <div className="space-y-2">
-                  <Label htmlFor="name" className="text-sm font-medium">
-                    Full Name <span className="text-destructive">*</span>
-                  </Label>
-                  <div className="relative">
-                    <Input
-                      id="name"
-                      name="name"
-                      value={formData.name}
-                      onChange={handleChange}
-                      className="pl-10"
-                      placeholder="John Doe"
-                      required
-                    />
-                    <User className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  <div className="space-y-2">
+                    <Label htmlFor="first_name" className="text-sm font-medium">
+                      First Name <span className="text-destructive">*</span>
+                    </Label>
+                    <div className="relative">
+                      <Input
+                        id="first_name"
+                        name="first_name"
+                        value={formData.first_name}
+                        onChange={handleChange}
+                        className="pl-10"
+                        placeholder="John"
+                        required
+                      />
+                      <User className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="last_name" className="text-sm font-medium">
+                      Last Name <span className="text-destructive">*</span>
+                    </Label>
+                    <div className="relative">
+                      <Input
+                        id="last_name"
+                        name="last_name"
+                        value={formData.last_name}
+                        onChange={handleChange}
+                        className="pl-10"
+                        placeholder="Doe"
+                        required
+                      />
+                      <User className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                    </div>
                   </div>
                 </div>
 
@@ -164,7 +210,7 @@ export default function InviteEmployeePage() {
 
                 <div className="space-y-2">
                   <Label htmlFor="position" className="text-sm font-medium">
-                    Position
+                    Position <span className="text-destructive">*</span>
                   </Label>
                   <div className="relative">
                     <Input
@@ -174,6 +220,7 @@ export default function InviteEmployeePage() {
                       onChange={handleChange}
                       className="pl-10"
                       placeholder="Software Engineer"
+                      required
                     />
                     <Briefcase className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                   </div>
@@ -181,19 +228,25 @@ export default function InviteEmployeePage() {
 
                 <div className="space-y-2">
                   <Label htmlFor="department" className="text-sm font-medium">
-                    Department
+                    Department <span className="text-destructive">*</span>
                   </Label>
-                  <div className="relative">
-                    <Input
-                      id="department"
-                      name="department"
-                      value={formData.department}
-                      onChange={handleChange}
-                      className="pl-10"
-                      placeholder="Engineering"
-                    />
+                  <Select 
+                    value={formData.department} 
+                    onValueChange={(value) => handleSelectChange("department", value)}
+                    required
+                  >
+                    <SelectTrigger className="pl-10">
+                      <SelectValue placeholder="Select a department" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {departments.map((dept) => (
+                        <SelectItem key={dept} value={dept}>
+                          {dept}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
                     <Building className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                  </div>
+                  </Select>
                 </div>
 
                 <div className="space-y-2">
@@ -284,14 +337,14 @@ export default function InviteEmployeePage() {
             </div>
             <CardTitle className="text-center text-2xl">Invitation Sent!</CardTitle>
             <CardDescription className="text-center text-base pt-2">
-              <TextGenerateEffect words={`The invitation email has been sent to ${invitedEmployee?.name} successfully.`} />
+              <TextGenerateEffect words={`The invitation email has been sent to ${invitedEmployee?.first_name} ${invitedEmployee?.last_name} successfully.`} />
             </CardDescription>
           </CardHeader>
           <CardContent className="pt-6">
             <div className="rounded-lg bg-muted/50 p-4 space-y-3">
               <div>
                 <p className="text-sm font-medium">Invited Employee</p>
-                <p className="text-muted-foreground">{invitedEmployee?.name}</p>
+                <p className="text-muted-foreground">{invitedEmployee?.first_name} {invitedEmployee?.last_name}</p>
               </div>
               <div>
                 <p className="text-sm font-medium">Email Address</p>
@@ -303,6 +356,12 @@ export default function InviteEmployeePage() {
                   <p className="text-muted-foreground">{invitedEmployee.position}</p>
                 </div>
               )}
+              {invitedEmployee?.department && (
+                <div>
+                  <p className="text-sm font-medium">Department</p>
+                  <p className="text-muted-foreground">{invitedEmployee.department}</p>
+                </div>
+              )}
             </div>
 
             <div className="flex items-start gap-3 mt-6 bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-100 dark:border-blue-900/30">
@@ -312,7 +371,7 @@ export default function InviteEmployeePage() {
               <div>
                 <p className="text-sm text-blue-800 dark:text-blue-400 font-medium">What happens next?</p>
                 <p className="text-xs text-blue-700 dark:text-blue-500 mt-1">
-                  {invitedEmployee?.name} will receive an email with a link to accept the invitation. 
+                  {invitedEmployee?.first_name} will receive an email with a link to accept the invitation. 
                   Once accepted, their status will change from "Invited" to "Active".
                 </p>
               </div>

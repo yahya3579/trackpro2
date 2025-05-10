@@ -1,162 +1,336 @@
 "use client";
 
-import { useState, useEffect } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
-import { CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import Image from "next/image";
+import { 
+  Mail, 
+  User,
+  Lock,
+  Eye,
+  EyeOff,
+  CheckCircle,
+  AlertCircle,
+  Loader2,
+  Building,
+  Briefcase
+} from "lucide-react";
+
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Card,
   CardContent,
   CardDescription,
   CardFooter,
   CardHeader,
-  CardTitle
-} from '@/components/ui/card';
-import { toast } from 'sonner';
+  CardTitle,
+} from "@/components/ui/card";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 export default function AcceptInvitePage() {
-  const searchParams = useSearchParams();
   const router = useRouter();
-  const [status, setStatus] = useState('loading'); // loading, success, error
-  const [message, setMessage] = useState('');
-  const [employeeData, setEmployeeData] = useState(null);
-  const [redirectCountdown, setRedirectCountdown] = useState(5); // 5 second countdown
+  const searchParams = useSearchParams();
+  const token = searchParams.get('token');
   
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState('');
+  const [employeeData, setEmployeeData] = useState(null);
+  
+  const [password, setPassword] = useState('');
+  const [passwordConfirm, setPasswordConfirm] = useState('');
+  
+  // Load and validate the invitation token
   useEffect(() => {
-    const token = searchParams.get('token');
+    async function validateToken() {
+      if (!token) {
+        setError('Invalid invitation link. Please check your email for the correct link.');
+        setIsLoading(false);
+        return;
+      }
+      
+      console.log('Validating token:', token.substring(0, 20) + '...');
+      
+      try {
+        // Make sure we pass the token exactly as received from the URL
+        const response = await fetch(`/api/invite/accept?token=${encodeURIComponent(token)}`);
+        const data = await response.json();
+        
+        console.log('API Response:', data);
+        
+        if (!response.ok || !data.success) {
+          console.error('Token validation failed:', data.error);
+          if (data.error === 'Employee has already activated their account') {
+            setError('This invitation has already been accepted. Please proceed to the login page.');
+          } else if (data.error === 'Employee not found with the email in the invitation') {
+            setError('Employee record not found. Please contact your administrator.');
+          } else {
+            setError(data.error || 'Invalid or expired invitation link.');
+          }
+        } else {
+          setEmployeeData(data.employee);
+        }
+      } catch (error) {
+        console.error('Error validating invitation:', error);
+        setError('Failed to validate invitation. Please try again later.');
+      } finally {
+        setIsLoading(false);
+      }
+    }
     
-    if (!token) {
-      setStatus('error');
-      setMessage('Invalid or missing invitation token');
+    validateToken();
+  }, [token]);
+  
+  // Handle form submission
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    // Validate passwords
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters long.');
       return;
     }
     
-    const acceptInvitation = async () => {
-      try {
-        const response = await fetch('/api/employees/accept-invite', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ token })
-        });
+    if (password !== passwordConfirm) {
+      setError('Passwords do not match.');
+      return;
+    }
+    
+    setError('');
+    setIsSubmitting(true);
+    
+    try {
+      const response = await fetch('/api/invite/accept', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          token,
+          password,
+        }),
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok || !data.success) {
+        setError(data.error || 'Failed to accept invitation.');
+        setIsSubmitting(false);
+      } else {
+        // Store employee data temporarily in localStorage to show on the login page
+        localStorage.setItem('accepted_employee', JSON.stringify(data.employee));
         
-        const data = await response.json();
-        
-        if (!response.ok) {
-          throw new Error(data.message || 'Failed to accept invitation');
-        }
-        
-        setStatus('success');
-        setMessage('Invitation accepted successfully');
-        setEmployeeData(data.employee);
-        
-        // Store the employee info locally if returned
-        if (data.employee) {
-          localStorage.setItem('accepted_employee', JSON.stringify({
-            id: data.employee.id,
-            name: data.employee.name,
-            email: data.employee.email,
-            organization: data.employee.organization
-          }));
-        }
-        
-        // Start countdown for redirect
-        const countdownInterval = setInterval(() => {
-          setRedirectCountdown(prev => {
-            if (prev <= 1) {
-              clearInterval(countdownInterval);
-              // Redirect to employees dashboard
-              router.push('/dashboard/employees?invitation=accepted');
-              return 0;
-            }
-            return prev - 1;
-          });
-        }, 1000);
-        
-        // Clean up interval
-        return () => clearInterval(countdownInterval);
-      } catch (error) {
-        setStatus('error');
-        setMessage(error.message || 'An error occurred while accepting the invitation');
-        toast.error(`Error: ${error.message}`);
+        // Redirect to login page with success flag
+        router.push('/login?invitation=accepted');
       }
-    };
-    
-    // Wait a bit for better UX to show loading state
-    const timer = setTimeout(() => {
-      acceptInvitation();
-    }, 1500);
-    
-    return () => clearTimeout(timer);
-  }, [searchParams, router]);
+    } catch (error) {
+      console.error('Error accepting invitation:', error);
+      setError('Failed to accept invitation. Please try again later.');
+      setIsSubmitting(false);
+    }
+  };
+  
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-muted/30">
+        <div className="text-center">
+          <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
+          <p className="mt-4 text-muted-foreground">Validating invitation...</p>
+        </div>
+      </div>
+    );
+  }
+  
+  // Error state
+  if (error && !employeeData) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-muted/30 p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <div className="mx-auto mb-4 rounded-full bg-red-100 p-3 text-red-600">
+              <AlertCircle className="h-6 w-6" />
+            </div>
+            <CardTitle className="text-xl">
+              {error.includes('already been accepted') ? 'Already Activated' : 'Invalid Invitation'}
+            </CardTitle>
+            <CardDescription className="text-muted-foreground mt-2">
+              {error}
+            </CardDescription>
+          </CardHeader>
+          <CardFooter className="flex flex-col gap-3">
+            {error.includes('already been accepted') ? (
+              <Button className="w-full" onClick={() => router.push('/login')}>
+                Go to Login
+              </Button>
+            ) : (
+              <Button className="w-full" onClick={() => router.push('/')}>
+                Return to Home
+              </Button>
+            )}
+          </CardFooter>
+        </Card>
+      </div>
+    );
+  }
   
   return (
-    <div className="min-h-screen bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center p-4">
+    <div className="flex items-center justify-center min-h-screen bg-muted/30 p-4">
       <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle className="text-2xl">Employee Invitation</CardTitle>
+        <CardHeader className="text-center">
+          <div className="mx-auto mb-4">
+            {/* Replace with your logo */}
+            <div className="w-12 h-12 bg-primary rounded-full flex items-center justify-center text-primary-foreground">
+              <User className="h-6 w-6" />
+            </div>
+          </div>
+          <CardTitle className="text-xl mb-1">Welcome to TrackPro</CardTitle>
           <CardDescription>
-            {status === 'loading' ? 'Processing your invitation...' : (
-              status === 'success' ? 'Welcome to TrackPro!' : 'Invitation Error'
-            )}
+            {employeeData?.first_name}, please create a password to complete your account setup.
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="flex flex-col items-center justify-center text-center py-6">
-            {status === 'loading' && (
-              <>
-                <div className="animate-spin mb-4">
-                  <Loader2 size={48} className="text-primary" />
-                </div>
-                <p>Verifying your invitation...</p>
-              </>
+        <form onSubmit={handleSubmit}>
+          <CardContent className="space-y-4">
+            {error && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Error</AlertTitle>
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
             )}
             
-            {status === 'success' && (
-              <>
-                <div className="text-green-600 dark:text-green-400 mb-4">
-                  <CheckCircle2 size={56} />
-                </div>
-                <h3 className="text-xl font-semibold mb-2">Invitation Accepted!</h3>
-                <p className="mb-4">
-                  Welcome to the team, {employeeData?.name}! Your account has been successfully activated.
-                </p>
-                {employeeData?.organization && (
-                  <p className="text-sm bg-muted/50 p-3 rounded-md">
-                    You have joined <strong>{employeeData.organization}</strong> on TrackPro.
-                  </p>
-                )}
-                <div className="mt-6 text-sm text-muted-foreground">
-                  <p>Redirecting to employees dashboard in {redirectCountdown} seconds...</p>
-                </div>
-              </>
-            )}
+            <div className="space-y-2">
+              <Label htmlFor="name">Name</Label>
+              <div className="relative">
+                <Input
+                  id="name"
+                  value={`${employeeData?.first_name || ''} ${employeeData?.last_name || ''}`}
+                  className="pl-10"
+                  disabled
+                />
+                <User className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+              </div>
+            </div>
             
-            {status === 'error' && (
-              <>
-                <div className="text-red-600 dark:text-red-400 mb-4">
-                  <AlertCircle size={56} />
-                </div>
-                <h3 className="text-xl font-semibold mb-2">Something went wrong</h3>
-                <p className="text-muted-foreground">{message || 'Unable to process your invitation'}</p>
-              </>
-            )}
-          </div>
-        </CardContent>
-        <CardFooter className="flex justify-center">
-          {status === 'success' && (
-            <Button onClick={() => router.push('/dashboard/employees?invitation=accepted')}>
-              Go to Employees Dashboard
-            </Button>
-          )}
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <div className="relative">
+                <Input
+                  id="email"
+                  value={employeeData?.email || ''}
+                  className="pl-10"
+                  disabled
+                />
+                <Mail className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="position">Position</Label>
+              <div className="relative">
+                <Input
+                  id="position"
+                  value={employeeData?.position || ''}
+                  className="pl-10"
+                  disabled
+                />
+                <Briefcase className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="department">Department</Label>
+              <div className="relative">
+                <Input
+                  id="department"
+                  value={employeeData?.department || ''}
+                  className="pl-10"
+                  disabled
+                />
+                <Building className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="organization">Organization</Label>
+              <Input
+                id="organization"
+                value={employeeData?.organization || ''}
+                disabled
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="password">
+                Create Password <span className="text-destructive">*</span>
+              </Label>
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  className="pl-10 pr-10"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  autoComplete="new-password"
+                />
+                <Lock className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                <button
+                  type="button"
+                  className="absolute right-3 top-2.5 text-muted-foreground"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
+                </button>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Password must be at least 6 characters long
+              </p>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="confirm-password">
+                Confirm Password <span className="text-destructive">*</span>
+              </Label>
+              <div className="relative">
+                <Input
+                  id="confirm-password"
+                  type={showPassword ? "text" : "password"}
+                  className="pl-10"
+                  value={passwordConfirm}
+                  onChange={(e) => setPasswordConfirm(e.target.value)}
+                  required
+                  autoComplete="new-password"
+                />
+                <Lock className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+              </div>
+            </div>
+          </CardContent>
           
-          {status === 'error' && (
-            <Button variant="outline" onClick={() => router.push('/')}>
-              Return to Homepage
+          <CardFooter>
+            <Button
+              type="submit"
+              className="w-full"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Creating Account...
+                </>
+              ) : (
+                "Accept Invitation & Create Account"
+              )}
             </Button>
-          )}
-        </CardFooter>
+          </CardFooter>
+        </form>
       </Card>
     </div>
   );

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { use } from "react";
 import { 
   User, 
   Mail, 
@@ -250,41 +251,87 @@ function ResendInviteDialog({ employee, isOpen, onClose, onConfirm }) {
 
 // Main Employee Detail Component
 export default function EmployeeDetailPage({ params }) {
+  const resolvedParams = use(params);
+  const employeeId = resolvedParams.id;
+  
   const router = useRouter();
   const [employee, setEmployee] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [isInviteDialogOpen, setIsInviteDialogOpen] = useState(false);
-  const employeeId = params.id;
 
   // Fetch employee data
   const fetchEmployeeData = async () => {
     try {
       setIsLoading(true);
       const token = localStorage.getItem("token");
-      const response = await fetch(`/api/employees/${employeeId}`, {
-        headers: {
-          "x-auth-token": token
+      
+      // Create direct URL - avoid using a variable that might be undefined
+      const apiUrl = `/api/employees/${employeeId}`;
+      
+      try {
+        const response = await fetch(apiUrl, {
+          headers: {
+            "x-auth-token": token || "" // Ensure we always send a string
+          }
+        });
+        
+        // Handle different status codes appropriately
+        if (!response.ok) {
+          console.warn(`API Error: ${response.status} ${response.statusText}`);
+          
+          // For server errors, don't try to parse response body (may not exist)
+          if (response.status === 500) {
+            throw new Error("Server error. Please try again later.");
+          }
+          
+          // For other errors, try to get response details
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.message || errorData.error || `Error ${response.status}: Failed to fetch employee data`);
         }
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to fetch employee data");
+        
+        const data = await response.json();
+        
+        // Handle different API response formats
+        if (data.employee) {
+          setEmployee(data.employee);
+        } else if (data.data) {
+          setEmployee(data.data);
+        } else if (data.success && data.data) {
+          setEmployee(data.data);
+        } else if (data.id) {
+          setEmployee(data);
+        } else {
+          console.warn("Unexpected API response format:", data);
+          throw new Error("Invalid response format from API");
+        }
+      } catch (fetchError) {
+        throw fetchError; // Re-throw to be caught by outer try/catch
       }
-
-      const data = await response.json();
-      setEmployee(data.employee);
     } catch (error) {
-      console.error("Error fetching employee:", error);
-      toast.error(`Error: ${error.message}`);
+      console.error("Error in fetchEmployeeData:", error);
+      toast.error(`${error.message}`);
+      
+      // Create placeholder employee object with minimal required props
+      setEmployee({ 
+        id: employeeId, 
+        name: "Employee Data Unavailable", 
+        status: "unknown",
+        email: "—",
+        position: "—",
+        department: "—",
+        phone: "—"
+      });
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Load employee data on mount
+  // Load employee data on mount, with dependency on employeeId
   useEffect(() => {
-    fetchEmployeeData();
+    if (employeeId) {
+      fetchEmployeeData();
+    }
   }, [employeeId]);
 
   // Handle form save

@@ -1,47 +1,55 @@
 import { NextResponse } from 'next/server';
-import db from '../../../../lib/db';
+import db from '@/lib/db';
 import { withAuth } from '../../../../lib/auth';
 
 // Get a specific employee by ID
-async function GET(request, { params }) {
+export async function GET(request, { params }) {
   try {
     const employeeId = params.id;
-    const user = request.user;
     
-    // Verify employee belongs to user's organization
-    let query = `
-      SELECT e.id, e.name, e.email, e.position, e.department, e.phone, 
-             e.hire_date, e.status, e.created_at, e.updated_at, e.org_id
-      FROM employees e
-      WHERE e.id = ?
-    `;
-    let queryParams = [employeeId];
+    if (!employeeId) {
+      return NextResponse.json(
+        { success: false, error: 'Employee ID is required' },
+        { status: 400 }
+      );
+    }
     
-    const [employees] = await db.query(query, queryParams);
+    // Fetch employee data
+    const [employees] = await db.query(
+      `SELECT id, first_name, last_name, email, position, department, phone, hire_date, status, 
+              created_at, updated_at
+       FROM employees 
+       WHERE id = ?`,
+      [employeeId]
+    );
     
     if (employees.length === 0) {
-      return NextResponse.json({ message: 'Employee not found' }, { status: 404 });
+      return NextResponse.json(
+        { success: false, error: 'Employee not found' },
+        { status: 404 }
+      );
     }
     
+    // Combine first_name and last_name into name for UI consistency
     const employee = employees[0];
+    employee.name = `${employee.first_name}${employee.last_name ? ' ' + employee.last_name : ''}`;
     
-    // Check if user has permission to access this employee
-    if (user.role === 'organization_admin' && employee.org_id !== user.id) {
-      return NextResponse.json({ message: 'Unauthorized' }, { status: 403 });
-    }
-    
-    // Remove sensitive fields before sending response
-    delete employee.org_id;
-    
-    return NextResponse.json({ employee });
+    // Return employee data
+    return NextResponse.json({
+      success: true,
+      data: employee
+    });
   } catch (error) {
-    console.error('Error fetching employee details:', error);
-    return NextResponse.json({ message: 'Server error', error: error.message }, { status: 500 });
+    console.error('Error fetching employee:', error);
+    return NextResponse.json(
+      { success: false, error: 'Failed to fetch employee data' },
+      { status: 500 }
+    );
   }
 }
 
 // Update an employee
-async function PATCH(request, { params }) {
+async function updateEmployee(request, { params }) {
   try {
     const employeeId = params.id;
     const user = request.user;
@@ -112,7 +120,7 @@ async function PATCH(request, { params }) {
 }
 
 // Delete an employee
-async function DELETE(request, { params }) {
+async function deleteEmployee(request, { params }) {
   try {
     const employeeId = params.id;
     const user = request.user;
@@ -144,6 +152,5 @@ async function DELETE(request, { params }) {
   }
 }
 
-export const GET = withAuth(GET);
-export const PATCH = withAuth(PATCH);
-export const DELETE = withAuth(DELETE); 
+export const PATCH = withAuth(updateEmployee);
+export const DELETE = withAuth(deleteEmployee); 

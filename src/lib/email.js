@@ -1,49 +1,34 @@
 'use server';
 
+import nodemailer from 'nodemailer';
+
+// Create a reusable transporter object
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: 'ninjab330@gmail.com', // Your Gmail address
+    pass: 'rzaw fthj jlhq zqyx'  // Your Gmail app password
+  }
+});
+
 /**
- * Send an email with a beautiful, mobile-responsive template
+ * Send an email using nodemailer
  */
 export async function sendEmail({ to, subject, text, html }) {
-  // Check for email configuration
-  const useRealEmail = process.env.EMAIL_SERVICE && 
-                       process.env.EMAIL_USER && 
-                       process.env.EMAIL_PASSWORD;
-  
   try {
-    // If we have email configuration, send a real email
-    if (useRealEmail) {
-      // Dynamically import nodemailer only on the server
-      const nodemailer = await import('nodemailer');
-      
-      const transporter = nodemailer.createTransport({
-        service: "gmail", // e.g., 'gmail'
-        auth: {
-          user: "ninjab330@gmail.com",
-          pass: "rzaw fthj jlhq zqyx"
-        }
-      });
-      
-      await transporter.sendMail({
-        from: "ninjab330@gmail.com",
-        to,
-        subject,
-        text,
-        html
-      });
-      
-      return true;
-    } else {
-      // Development mode - log the email details
-      console.log(`Sending email to: ${to}`);
-      console.log(`Subject: ${subject}`);
-      console.log(`Text: ${text}`);
-      console.log(`HTML email would display: ${html}`);
-      
-      return true;
-    }
+    // Send mail with defined transport object
+    const info = await transporter.sendMail({
+      from: '"TrackPro" <ninjab330@gmail.com>',
+      to,
+      subject,
+      text,
+      html
+    });
+
+    console.log('Message sent: %s', info.messageId);
+    return true;
   } catch (error) {
     console.error('Error sending email:', error);
-    // Don't throw here - email failure shouldn't break the application flow
     return false;
   }
 }

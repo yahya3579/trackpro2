@@ -205,9 +205,17 @@ export async function GET(request) {
     // Execute the query
     const [employees] = await db.query(query, params);
     
+    // Combine first_name and last_name into name for UI consistency
+    const employeesWithName = employees.map(employee => {
+      return {
+        ...employee,
+        name: `${employee.first_name}${employee.last_name ? ' ' + employee.last_name : ''}`
+      };
+    });
+    
     return NextResponse.json({ 
       success: true, 
-      data: employees 
+      data: employeesWithName 
     });
   } catch (error) {
     console.error('Error fetching employees:', error);
@@ -223,48 +231,111 @@ export async function POST(request) {
   try {
     const body = await request.json();
     const { 
-      first_name, 
-      last_name, 
+      name,
       email, 
-      phone, 
       position, 
       department, 
-      hire_date, 
-      salary 
+      phone 
     } = body;
     
     // Validation
-    if (!first_name || !last_name || !email || !position || !department || !hire_date || !salary) {
+    if (!name || !email) {
       return NextResponse.json(
-        { success: false, error: 'Missing required fields' },
+        { success: false, error: 'Name and email are required' },
         { status: 400 }
       );
     }
     
-    // Insert the new employee
+    // Check if employee with this email already exists
+    const [existingEmployees] = await db.query(
+      'SELECT * FROM employees WHERE email = ?',
+      [email]
+    );
+    
+    if (existingEmployees.length > 0) {
+      return NextResponse.json(
+        { success: false, error: 'Employee with this email already exists' },
+        { status: 409 }
+      );
+    }
+    
+    // Generate invite token
+    const inviteToken = crypto.randomBytes(32).toString('hex');
+    
+    // Set invite expiry to 7 days from now
+    const inviteExpiry = new Date();
+    inviteExpiry.setDate(inviteExpiry.getDate() + 7);
+    
+    // Insert the new employee with invited status
     const query = `
       INSERT INTO employees 
-      (first_name, last_name, email, phone, position, department, hire_date, salary)
+      (name, email, position, department, phone, status, invite_token, invite_expiry)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `;
     
     const [result] = await db.query(query, [
-      first_name, 
-      last_name, 
+      name, 
       email, 
-      phone, 
-      position, 
-      department, 
-      hire_date, 
-      salary
+      position,
+      department,
+      phone,
+      'invited',
+      inviteToken,
+      inviteExpiry
     ]);
+    
+    // Create invitation link
+    const inviteLink = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/invite/accept?token=${inviteToken}`;
+    
+    // Get organization info (if implemented)
+    let orgName = 'Our Company';
+    try {
+      // This could vary based on your app's auth system
+      const token = request.headers.get('x-auth-token');
+      if (token) {
+        // Get org info based on token (if implemented)
+        // This is placeholder code
+        const [orgResult] = await db.query(
+          'SELECT name FROM organizations WHERE id = (SELECT org_id FROM users WHERE token = ?)',
+          [token]
+        );
+        if (orgResult && orgResult[0]) {
+          orgName = orgResult[0].name;
+        }
+      }
+    } catch (error) {
+      console.error('Error getting organization name:', error);
+    }
+    
+    // Generate email content
+    const htmlEmail = generateInviteEmailTemplate({
+      recipientName: name,
+      organizationName: orgName,
+      inviteLink,
+      expiryDays: 7
+    });
+    
+    // Send invitation email
+    await sendEmail({
+      to: email,
+      subject: `Invitation to join ${orgName} on TrackPro`,
+      text: `Hello ${name}, you have been invited to join ${orgName} on TrackPro. Please use the following link to accept the invitation: ${inviteLink}. This link is valid for 7 days.`,
+      html: htmlEmail
+    });
     
     return NextResponse.json({ 
       success: true, 
-      data: { 
+      message: 'Employee invited successfully',
+      employee: {
         id: result.insertId,
-        ...body
-      } 
+        name,
+        email,
+        position,
+        department,
+        phone,
+        status: 'invited',
+        created_at: new Date()
+      }
     }, { status: 201 });
   } catch (error) {
     console.error('Error creating employee:', error);

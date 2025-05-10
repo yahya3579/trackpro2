@@ -1,77 +1,101 @@
 import { NextResponse } from 'next/server';
 import crypto from 'crypto';
-import db from '../../../../../lib/db';
-import { withAuth } from '../../../../../lib/auth';
-import { sendEmail, generateInviteEmailTemplate } from '../../../../../lib/email';
+import db from '@/lib/db';
+import { sendEmail, generateInviteEmailTemplate } from '@/lib/email';
 
-async function POST(request, { params }) {
+// POST endpoint to resend an invitation
+export async function POST(request, { params }) {
   try {
     const employeeId = params.id;
-    const user = request.user;
+    const token = request.headers.get('x-auth-token');
     
-    // Find employee
+    // Fetch employee data
     const [employees] = await db.query(
-      'SELECT e.*, o.name as org_name FROM employees e JOIN organizations o ON e.org_id = o.id WHERE e.id = ?',
+      `SELECT id, name, email, org_id, status FROM employees WHERE id = ?`,
       [employeeId]
     );
     
     if (employees.length === 0) {
-      return NextResponse.json({ message: 'Employee not found' }, { status: 404 });
+      return NextResponse.json(
+        { success: false, error: 'Employee not found' },
+        { status: 404 }
+      );
     }
     
     const employee = employees[0];
     
-    // Check if user has permission to resend invitation
-    if (user.role === 'organization_admin' && employee.org_id !== user.id) {
-      return NextResponse.json({ message: 'Unauthorized' }, { status: 403 });
-    }
-    
-    // Check if employee status is 'invited'
-    if (employee.status !== 'invited') {
-      return NextResponse.json({ 
-        message: 'Can only resend invitations to employees with "invited" status' 
-      }, { status: 400 });
+    // Check if employee is already active
+    if (employee.status === 'active') {
+      return NextResponse.json(
+        { success: false, error: 'Cannot resend invitation to active employee' },
+        { status: 400 }
+      );
     }
     
     // Generate new invite token
     const inviteToken = crypto.randomBytes(32).toString('hex');
     
-    // Set invite expiry to 7 days from now
+    // Set new invite expiry to 7 days from now
     const inviteExpiry = new Date();
     inviteExpiry.setDate(inviteExpiry.getDate() + 7);
     
     // Update employee with new token and expiry
     await db.query(
-      'UPDATE employees SET invite_token = ?, invite_expiry = ? WHERE id = ?',
+      `UPDATE employees 
+       SET invite_token = ?, 
+           invite_expiry = ?, 
+           status = 'invited',
+           updated_at = NOW()
+       WHERE id = ?`,
       [inviteToken, inviteExpiry, employeeId]
     );
     
-    // Send invitation email
-    const inviteLink = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/invite/accept?token=${inviteToken}`;
-    const orgName = employee.org_name;
+    // Get organization name if available
+    let orgName = 'Your Organization';
+    try {
+      if (employee.org_id) {
+        const [orgResult] = await db.query(
+          `SELECT name FROM organizations WHERE id = ?`,
+          [employee.org_id]
+        );
+        
+        if (orgResult && orgResult.length > 0) {
+          orgName = orgResult[0].name;
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching organization name:', error);
+    }
     
-    // Create beautiful HTML email
+    // Create invitation link
+    const inviteLink = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/invite/accept?token=${inviteToken}`;
+    
+    // Generate email content
     const htmlEmail = generateInviteEmailTemplate({
       recipientName: employee.name,
       organizationName: orgName,
       inviteLink,
-      expiryDays: 7
+      expiryDays: 7,
+      isResend: true
     });
     
+    // Send invitation email
     await sendEmail({
       to: employee.email,
-      subject: `Invitation to join ${orgName} on TrackPro`,
+      subject: `Invitation Reminder: Join ${orgName} on TrackPro`,
       text: `Hello ${employee.name}, you have been invited to join ${orgName} on TrackPro. Please use the following link to accept the invitation: ${inviteLink}. This link is valid for 7 days.`,
       html: htmlEmail
     });
     
     return NextResponse.json({
+      success: true,
       message: 'Invitation resent successfully'
     });
   } catch (error) {
     console.error('Error resending invitation:', error);
-    return NextResponse.json({ message: 'Server error', error: error.message }, { status: 500 });
+    return NextResponse.json(
+      { success: false, error: 'Failed to resend invitation' },
+      { status: 500 }
+    );
   }
-}
-
-export const POST = withAuth(POST); 
+} 
