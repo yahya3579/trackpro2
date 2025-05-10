@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import crypto from 'crypto';
-import db from '../../../lib/db';
+import db from '@/lib/db';
 import { withAuth } from '../../../lib/auth';
 import { sendEmail, generateInviteEmailTemplate } from '../../../lib/email';
 
@@ -168,5 +168,121 @@ async function createEmployee(request) {
   }
 }
 
-export const GET = withAuth(getEmployees);
-export const POST = withAuth(createEmployee); 
+// GET all employees
+export async function GET(request) {
+  try {
+    // Get query parameters from the URL
+    const { searchParams } = new URL(request.url);
+    const department = searchParams.get('department');
+    const status = searchParams.get('status');
+    const search = searchParams.get('search');
+    
+    let query = 'SELECT * FROM employees';
+    let params = [];
+    
+    // Add filters if provided
+    if (department || status || search) {
+      query += ' WHERE';
+      
+      if (department) {
+        query += ' department = ?';
+        params.push(department);
+      }
+      
+      if (status) {
+        if (params.length > 0) query += ' AND';
+        query += ' status = ?';
+        params.push(status);
+      }
+      
+      if (search) {
+        if (params.length > 0) query += ' AND';
+        query += ' (first_name LIKE CONCAT("%", ?, "%") OR last_name LIKE CONCAT("%", ?, "%"))';
+        params.push(search, search);
+      }
+    }
+    
+    // Execute the query
+    const [employees] = await db.query(query, params);
+    
+    return NextResponse.json({ 
+      success: true, 
+      data: employees 
+    });
+  } catch (error) {
+    console.error('Error fetching employees:', error);
+    return NextResponse.json(
+      { success: false, error: 'Failed to fetch employees' },
+      { status: 500 }
+    );
+  }
+}
+
+// POST to add a new employee
+export async function POST(request) {
+  try {
+    const body = await request.json();
+    const { 
+      first_name, 
+      last_name, 
+      email, 
+      phone, 
+      position, 
+      department, 
+      hire_date, 
+      salary 
+    } = body;
+    
+    // Validation
+    if (!first_name || !last_name || !email || !position || !department || !hire_date || !salary) {
+      return NextResponse.json(
+        { success: false, error: 'Missing required fields' },
+        { status: 400 }
+      );
+    }
+    
+    // Insert the new employee
+    const query = `
+      INSERT INTO employees 
+      (first_name, last_name, email, phone, position, department, hire_date, salary)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `;
+    
+    const [result] = await db.query(query, [
+      first_name, 
+      last_name, 
+      email, 
+      phone, 
+      position, 
+      department, 
+      hire_date, 
+      salary
+    ]);
+    
+    return NextResponse.json({ 
+      success: true, 
+      data: { 
+        id: result.insertId,
+        ...body
+      } 
+    }, { status: 201 });
+  } catch (error) {
+    console.error('Error creating employee:', error);
+    
+    // Handle duplicate email error
+    if (error.code === 'ER_DUP_ENTRY') {
+      return NextResponse.json(
+        { success: false, error: 'Email already exists' },
+        { status: 409 }
+      );
+    }
+    
+    return NextResponse.json(
+      { success: false, error: 'Failed to create employee' },
+      { status: 500 }
+    );
+  }
+}
+
+export const GET_AUTH = withAuth(getEmployees);
+export const POST_AUTH = withAuth(createEmployee); 

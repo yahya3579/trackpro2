@@ -290,20 +290,32 @@ export default function EmployeesPage() {
       setIsLoading(true);
       const token = localStorage.getItem("token");
       
-      const response = await fetch('http:localhost:3000/api/employees')
+      const response = await fetch('http://localhost:3000/api/employees')
       
-
       if (!response.ok) {
         throw new Error("Failed to fetch employees");
       }
 
       const data = await response.json();
-      setEmployees(data.employees);
-      setTotalPages(data.pagination.totalPages);
+      // Handle different response formats
+      if (data.data) {
+        // New API format
+        setEmployees(data.data);
+        setTotalPages(1); // Default to 1 page if pagination not provided
+      } else if (data.employees) {
+        // Old API format
+        setEmployees(data.employees);
+        setTotalPages(data.pagination?.totalPages || 1);
+      } else {
+        // Fallback if unexpected format
+        setEmployees([]);
+        setTotalPages(1);
+      }
     } catch (error) {
       console.error("Error fetching employees:", error);
       toast.error(`Error: ${error.message}`);
       setEmployees([]);
+      setTotalPages(1);
     } finally {
       setIsLoading(false);
     }
