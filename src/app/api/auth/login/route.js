@@ -84,6 +84,47 @@ export async function POST(request) {
       });
     }
 
+    // Check if user exists in users table (employees who accepted invitations)
+    const [users] = await db.query('SELECT u.*, e.employee_name FROM users u JOIN employees e ON u.email = e.email WHERE u.email = ?', [email]);
+    
+    if (users.length > 0) {
+      // User is an employee
+      const user = users[0];
+
+      // Check password
+      const isPasswordMatch = await bcrypt.compare(password, user.password);
+      
+      if (!isPasswordMatch) {
+        return NextResponse.json({ message: 'Invalid credentials' }, { status: 401 });
+      }
+
+      // Generate token
+      const token = jwt.sign(
+        { 
+          id: user.id, 
+          email: user.email, 
+          name: user.employee_name, 
+          role: user.role,
+          organization_id: user.organization_id
+        },
+        JWT_SECRET,
+        { expiresIn: '1d' }
+      );
+
+      // Return token and user info
+      return NextResponse.json({
+        message: 'Login successful',
+        token,
+        user: {
+          id: user.id,
+          name: user.employee_name,
+          email: user.email,
+          role: user.role,
+          userType: 'employee'
+        }
+      });
+    }
+
     // If we reach here, no user was found
     return NextResponse.json({ message: 'Invalid credentials' }, { status: 401 });
   } catch (error) {

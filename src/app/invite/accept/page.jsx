@@ -41,6 +41,7 @@ export default function AcceptInvitePage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
   const [employeeData, setEmployeeData] = useState(null);
   
   const [password, setPassword] = useState('');
@@ -122,8 +123,14 @@ export default function AcceptInvitePage() {
         // Store employee data temporarily in localStorage to show on the login page
         localStorage.setItem('accepted_employee', JSON.stringify(data.employee));
         
-        // Redirect to login page with success flag
-        router.push('/login?invitation=accepted');
+        // Show success message first, then redirect after a short delay
+        setIsSubmitting(false);
+        setSuccessMessage('Your account has been successfully created! You will be redirected to the login page.');
+        
+        // Redirect to login page with success flag after a short delay
+        setTimeout(() => {
+          router.push('/login?invitation=accepted');
+        }, 2000);
       }
     } catch (error) {
       console.error('Error accepting invitation:', error);
@@ -205,6 +212,14 @@ export default function AcceptInvitePage() {
                   <AlertCircle className="h-4 w-4" />
                   <AlertTitle>Error</AlertTitle>
                   <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              )}
+              
+              {successMessage && (
+                <Alert variant="success" className="bg-green-50 border-green-200 text-green-800 animate-pulse">
+                  <CheckCircle className="h-4 w-4 text-green-600" />
+                  <AlertTitle>Success</AlertTitle>
+                  <AlertDescription>{successMessage}</AlertDescription>
                 </Alert>
               )}
               

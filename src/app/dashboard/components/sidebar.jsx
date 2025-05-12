@@ -432,7 +432,7 @@ export function Sidebar({ className }) {
             "grid gap-1",
             collapsed ? "px-0" : "px-2"
           )}>
-            {userData.role !== 'super_admin' && !collapsed && (
+            {/* {userData.role !== 'super_admin' && !collapsed && (
               <Button
                 variant="outline"
                 size="sm"
@@ -442,7 +442,7 @@ export function Sidebar({ className }) {
                 <ShieldAlert className="h-3.5 w-3.5 mr-2 text-primary" />
                 <span>Super Admin Login</span>
               </Button>
-            )}
+            )} */}
             
             <Button
               variant="ghost"

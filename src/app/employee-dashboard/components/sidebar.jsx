@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { 
@@ -11,12 +11,23 @@ import {
   Calendar as CalendarIcon,
   ChevronLeft,
   ChevronRight,
-  Home
+  Home,
+  LogOut
 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 
 export function Sidebar({ isSidebarOpen, setIsSidebarOpen }) {
   const pathname = usePathname();
+  const router = useRouter();
+  
+  const handleLogout = () => {
+    // Clear authentication data
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    
+    // Redirect to login page
+    router.push('/login');
+  };
   
   return (
     <>
@@ -98,16 +109,20 @@ export function Sidebar({ isSidebarOpen, setIsSidebarOpen }) {
           </div>
         </div>
         
-        {/* Trial notification */}
-        {isSidebarOpen && (
-          <div className="p-4">
-            <div className="rounded-md bg-red-50 p-3 text-center">
-              <p className="text-sm font-medium text-red-600">
-                Trial: 7 days remaining
-              </p>
-            </div>
-          </div>
-        )}
+        {/* Logout section at the bottom */}
+        <div className="mt-auto py-4 border-t">
+          <Button
+            variant="ghost"
+            className={cn(
+              "flex items-center w-full px-4 py-3 text-sm font-medium text-red-600 hover:bg-red-50 transition-colors",
+              !isSidebarOpen && "justify-center px-0"
+            )}
+            onClick={handleLogout}
+          >
+            <LogOut size={20} className={cn("mr-3", !isSidebarOpen && "mr-0")} />
+            {isSidebarOpen && <span>Logout</span>}
+          </Button>
+        </div>
       </div>
       
       {/* Mobile overlay when sidebar is open */}

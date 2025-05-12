@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,13 +22,40 @@ const fadeIn = {
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const invitationAccepted = searchParams.get('invitation') === 'accepted';
+  
   const [formData, setFormData] = useState({
     email: '',
     password: ''
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+
+  // Check if user was redirected from the invitation acceptance page
+  useEffect(() => {
+    if (invitationAccepted) {
+      // Get the accepted employee data from localStorage
+      const acceptedEmployeeJSON = localStorage.getItem('accepted_employee');
+      if (acceptedEmployeeJSON) {
+        try {
+          const acceptedEmployee = JSON.parse(acceptedEmployeeJSON);
+          setFormData(prev => ({
+            ...prev,
+            email: acceptedEmployee.email || prev.email
+          }));
+          setSuccessMessage(`Welcome ${acceptedEmployee.name}! Your account has been created successfully. Please log in with your email and password.`);
+          
+          // Clear the temporary data
+          localStorage.removeItem('accepted_employee');
+        } catch (e) {
+          console.error('Error parsing accepted employee data:', e);
+        }
+      }
+    }
+  }, [invitationAccepted]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -69,8 +96,12 @@ export default function LoginPage() {
       localStorage.setItem('token', data.token);
       localStorage.setItem('user', JSON.stringify(data.user));
       
-      // Always redirect to dashboard, regardless of role
-      router.push('/dashboard');
+      // Redirect based on user type/role
+      if (data.user.userType === 'employee') {
+        router.push('/employee-dashboard');
+      } else {
+        router.push('/dashboard');
+      }
     } catch (error) {
       setError(error.message);
     } finally {
@@ -119,6 +150,14 @@ export default function LoginPage() {
                 <CardItem translateZ={30} className="w-full mb-4">
                   <div className="bg-red-50 text-red-500 p-3 rounded-md text-sm border border-red-200">
                     {error}
+                  </div>
+                </CardItem>
+              )}
+              
+              {successMessage && (
+                <CardItem translateZ={30} className="w-full mb-4">
+                  <div className="bg-green-50 text-green-700 p-3 rounded-md text-sm border border-green-200">
+                    {successMessage}
                   </div>
                 </CardItem>
               )}
