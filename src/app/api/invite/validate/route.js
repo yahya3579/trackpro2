@@ -1,9 +1,8 @@
 import { NextResponse } from 'next/server';
 import db from '@/lib/db';
 import crypto from 'crypto';
-import bcrypt from 'bcryptjs';
 
-// Validate token (same implementation as in validate route)
+// Validate token
 function validateToken(token) {
   try {
     // Split the token into data and signature parts
@@ -44,25 +43,29 @@ function validateToken(token) {
   }
 }
 
-export async function POST(request) {
+export async function GET(request) {
   try {
-    const { token, password } = await request.json();
+    // Get token from query string
+    const url = new URL(request.url);
+    const token = url.searchParams.get('token');
     
-    console.log("Token received for accept:", token?.substring(0, 20) + "...");
+    console.log("Token received in validation:", token?.substring(0, 20) + "...");
     
-    if (!token || !password) {
+    if (!token) {
       return NextResponse.json({
         success: false,
-        error: 'Token and password are required'
+        error: 'Token is required'
       }, { status: 400 });
     }
     
-    // Ensure token is properly decoded from URL encoding if needed
+    // Ensure token is properly decoded from URL encoding
     const decodedToken = decodeURIComponent(token);
+    
+    // Check if token exists in database - simplify to just look up the token
+    console.log("Checking database for token...");
     console.log("Token length:", decodedToken.length);
     
-    // Get token from database
-    console.log("Checking database for token...");
+    // First try direct match
     const [tokens] = await db.query(
       'SELECT * FROM invitation_tokens WHERE token = ?',
       [decodedToken]
@@ -70,7 +73,7 @@ export async function POST(request) {
     
     console.log("DB query results:", tokens.length > 0 ? "Token found" : "Token not found");
     
-    // If token not found, log sample tokens for debugging
+    // If token not found, log the first few tokens from the database for comparison
     if (tokens.length === 0) {
       const [sampleTokens] = await db.query('SELECT id, token, email FROM invitation_tokens LIMIT 3');
       console.log("Sample tokens in DB:", sampleTokens.map(t => ({
@@ -91,14 +94,15 @@ export async function POST(request) {
       id: inviteToken.id,
       email: inviteToken.email,
       role: inviteToken.role,
-      used_at: inviteToken.used_at
+      used_at: inviteToken.used_at,
+      expires_at: inviteToken.expires_at
     }));
     
     // Check if token is already used
     if (inviteToken.used_at) {
       return NextResponse.json({
         success: false,
-        error: 'This invitation has already been accepted'
+        error: 'Employee has already activated their account'
       }, { status: 400 });
     }
     
@@ -107,15 +111,14 @@ export async function POST(request) {
     if (tokenExpiry < new Date()) {
       return NextResponse.json({
         success: false,
-        error: 'This invitation has expired'
+        error: 'Token has expired'
       }, { status: 400 });
     }
     
-    // Get employee from database using the email in the token
-    const email = inviteToken.email;
+    // Now get the employee data directly from the database
     const [employees] = await db.query(
       'SELECT * FROM employees WHERE email = ?',
-      [email]
+      [inviteToken.email]
     );
     
     if (employees.length === 0) {
@@ -127,82 +130,19 @@ export async function POST(request) {
     
     const employee = employees[0];
     
-    // Hash the password
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
-    
-    // Log the user data before insert for debugging
-    console.log("Creating user with data:", {
-      email: email,
-      employee_name: employee.employee_name,
-      role: employee.role,
-      employee_id: employee.id
-    });
-    
-    try {
-      // First, get a valid organization ID
-      const [organizations] = await db.query('SELECT id FROM organizations LIMIT 1');
-      
-      if (organizations.length === 0) {
-        throw new Error('No organizations found in the database');
-      }
-      
-      const organizationId = organizations[0].id;
-      
-      // Check if user already exists
-      const [existingUser] = await db.query(
-        'SELECT * FROM users WHERE email = ?',
-        [email]
-      );
-      
-      if (existingUser.length === 0) {
-        // Create user account with the hashed password - let the database auto-generate the ID
-        await db.query(
-          'INSERT INTO users (email, password, role, organization_id, created_at, updated_at) VALUES (?, ?, ?, ?, NOW(), NOW())',
-          [email, hashedPassword, employee.role, organizationId]
-        );
-      } else {
-        // Update existing user
-        await db.query(
-          'UPDATE users SET password = ?, role = ?, updated_at = NOW() WHERE email = ?',
-          [hashedPassword, employee.role, email]
-        );
-      }
-    } catch (insertError) {
-      console.error("Error inserting user:", insertError);
-      
-      // Try to get the table structure to see available columns
-      const [userColumns] = await db.query('SHOW COLUMNS FROM users');
-      console.log("Users table columns:", userColumns.map(col => col.Field));
-      
-      throw insertError;
-    }
-    
-    // Update employee status to active
-    await db.query(
-      'UPDATE employees SET status = "" WHERE id = ?',
-      [employee.id]
-    );
-    
-    // Mark invitation token as used
-    await db.query(
-      'UPDATE invitation_tokens SET used_at = NOW() WHERE id = ?',
-      [inviteToken.id]
-    );
-    
+    // Return employee data for UI display
     return NextResponse.json({
       success: true,
-      message: 'Account created successfully',
       employee: {
-        id: employee.id,
         name: employee.employee_name,
         email: employee.email,
-        role: employee.role
+        role: employee.role,
+        team: inviteToken.team_name
       }
     });
     
   } catch (error) {
-    console.error('Error accepting invitation:', error);
+    console.error('Error validating invitation token:', error);
     return NextResponse.json({
       success: false,
       error: 'Server error: ' + error.message

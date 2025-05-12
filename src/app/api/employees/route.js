@@ -1,359 +1,141 @@
 import { NextResponse } from 'next/server';
-import crypto from 'crypto';
 import db from '@/lib/db';
-import { withAuth } from '../../../lib/auth';
-import { sendEmail, generateInviteEmailTemplate } from '../../../lib/email';
 
-// Get all employees (with pagination)
-async function getEmployees(request) {
-  try {
-    const user = request.user;
-    
-    // Parse URL params for pagination
-    const { searchParams } = new URL(request.url);
-    const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '10');
-    const offset = (page - 1) * limit;
-    const search = searchParams.get('search') || '';
-    
-    // Get organization ID based on user role
-    let orgId;
-    if (user.role === 'organization_admin') {
-      orgId = user.id;
-    } else if (user.role === 'super_admin') {
-      // If super_admin, check if org_id is specified in the query
-      orgId = searchParams.get('org_id');
-      if (!orgId) {
-        return NextResponse.json({ message: 'Organization ID required for super admin' }, { status: 400 });
-      }
-    } else {
-      return NextResponse.json({ message: 'Unauthorized' }, { status: 403 });
-    }
-    
-    // Query with pagination and search
-    let query = `
-      SELECT id, name, email, position, department, phone, hire_date, status, created_at, updated_at
-      FROM employees 
-      WHERE org_id = ?
-    `;
-    
-    let params = [orgId];
-    
-    // Add search condition if search term provided
-    if (search) {
-      query += ` AND (name LIKE ? OR email LIKE ? OR position LIKE ? OR department LIKE ?)`;
-      const searchTerm = `%${search}%`;
-      params = [...params, searchTerm, searchTerm, searchTerm, searchTerm];
-    }
-    
-    // Add pagination
-    query += ` ORDER BY created_at DESC LIMIT ? OFFSET ?`;
-    params = [...params, limit, offset];
-    
-    // Execute query
-    const [employees] = await db.query(query, params);
-    
-    // Get total count for pagination
-    const [countResult] = await db.query(
-      `SELECT COUNT(*) as total FROM employees WHERE org_id = ?`,
-      [orgId]
-    );
-    
-    const totalEmployees = countResult[0].total;
-    const totalPages = Math.ceil(totalEmployees / limit);
-    
-    return NextResponse.json({
-      employees,
-      pagination: {
-        page,
-        limit,
-        totalEmployees,
-        totalPages
-      }
-    });
-  } catch (error) {
-    console.error('Error fetching employees:', error);
-    return NextResponse.json({ message: 'Server error', error: error.message }, { status: 500 });
-  }
-}
-
-// Create a new employee invitation
-async function createEmployee(request) {
-  try {
-    const user = request.user;
-    const { name, email, position, department, phone } = await request.json();
-    
-    // Validate required fields
-    if (!name || !email) {
-      return NextResponse.json({ message: 'Name and email are required' }, { status: 400 });
-    }
-    
-    // Get organization ID based on user role
-    let orgId;
-    if (user.role === 'organization_admin') {
-      orgId = user.id;
-    } else if (user.role === 'super_admin' && user.org_id) {
-      orgId = user.org_id;
-    } else {
-      return NextResponse.json({ message: 'Unauthorized' }, { status: 403 });
-    }
-    
-    // Check if employee with this email already exists
-    const [existingEmployees] = await db.query(
-      'SELECT * FROM employees WHERE email = ?',
-      [email]
-    );
-    
-    if (existingEmployees.length > 0) {
-      return NextResponse.json({ message: 'Employee with this email already exists' }, { status: 400 });
-    }
-    
-    // Generate invite token
-    const inviteToken = crypto.randomBytes(32).toString('hex');
-    
-    // Set invite expiry to 7 days from now
-    const inviteExpiry = new Date();
-    inviteExpiry.setDate(inviteExpiry.getDate() + 7);
-    
-    // Insert new employee
-    const [result] = await db.query(
-      `INSERT INTO employees 
-       (name, email, position, department, phone, org_id, status, invite_token, invite_expiry) 
-       VALUES (?, ?, ?, ?, ?, ?, 'invited', ?, ?)`,
-      [name, email, position, department, phone, orgId, inviteToken, inviteExpiry]
-    );
-    
-    // Get organization name
-    const [orgResult] = await db.query(
-      'SELECT name FROM organizations WHERE id = ?',
-      [orgId]
-    );
-    
-    const orgName = orgResult[0]?.name || 'Our Company';
-    
-    // Send invitation email
-    const inviteLink = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/invite/accept?token=${inviteToken}`;
-    
-    // Create beautiful HTML email
-    const htmlEmail = generateInviteEmailTemplate({
-      recipientName: name,
-      organizationName: orgName,
-      inviteLink,
-      expiryDays: 7
-    });
-    
-    await sendEmail({
-      to: email,
-      subject: `Invitation to join ${orgName} on TrackPro`,
-      text: `Hello ${name}, you have been invited to join ${orgName} on TrackPro. Please use the following link to accept the invitation: ${inviteLink}. This link is valid for 7 days.`,
-      html: htmlEmail
-    });
-    
-    return NextResponse.json({
-      message: 'Employee invited successfully',
-      employee: {
-        id: result.insertId,
-        name,
-        email,
-        position,
-        department,
-        phone,
-        status: 'invited',
-        created_at: new Date()
-      }
-    }, { status: 201 });
-  } catch (error) {
-    console.error('Error creating employee:', error);
-    return NextResponse.json({ message: 'Server error', error: error.message }, { status: 500 });
-  }
-}
-
-// GET all employees
+// GET - Fetch all employees
 export async function GET(request) {
   try {
-    // Get query parameters from the URL
-    const { searchParams } = new URL(request.url);
-    const department = searchParams.get('department');
-    const status = searchParams.get('status');
-    const search = searchParams.get('search');
-    
-    let query = 'SELECT * FROM employees';
-    let params = [];
-    
-    // Add filters if provided
-    if (department || status || search) {
-      query += ' WHERE';
-      
-      if (department) {
-        query += ' department = ?';
-        params.push(department);
-      }
-      
-      if (status) {
-        if (params.length > 0) query += ' AND';
-        query += ' status = ?';
-        params.push(status);
-      }
-      
-      if (search) {
-        if (params.length > 0) query += ' AND';
-        query += ' (first_name LIKE CONCAT("%", ?, "%") OR last_name LIKE CONCAT("%", ?, "%"))';
-        params.push(search, search);
-      }
+    // Get token from header
+    const token = request.headers.get('x-auth-token');
+    if (!token) {
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Authorization token is required' 
+      }, { status: 401 });
     }
     
-    // Execute the query
-    const [employees] = await db.query(query, params);
+    // Check if employees table exists
+    try {
+      const [checkTable] = await db.query('SHOW TABLES LIKE "employees"');
+      if (checkTable.length === 0) {
+        return NextResponse.json({ 
+          success: false, 
+          error: 'Employees table does not exist',
+          debug: true
+        }, { status: 500 });
+      }
+    } catch (tableError) {
+      console.error('Error checking employees table:', tableError);
+    }
     
-    // Combine first_name and last_name into name for UI consistency
-    const employeesWithName = employees.map(employee => {
-      return {
-        ...employee,
-        name: `${employee.first_name}${employee.last_name ? ' ' + employee.last_name : ''}`
-      };
+    // Get query parameters if needed
+    const { searchParams } = new URL(request.url);
+    const status = searchParams.get('status');
+    const department = searchParams.get('department');
+    
+    // Check table structure (optional)
+    let columns = [];
+    try {
+      const [checkColumns] = await db.query('SHOW COLUMNS FROM employees');
+      columns = checkColumns.map(col => col.Field);
+      console.log('Available columns:', columns);
+    } catch (columnError) {
+      console.error('Error getting table structure:', columnError);
+    }
+    
+    // Build query based on available columns
+    let selectColumns = 'id';
+    
+    // These are the columns we want
+    const wantedColumns = [
+        'id', 'employee_name', 'email', 'role', 'team_name'
+    ];
+    
+    // Include only columns that exist in the table
+    const availableColumns = wantedColumns.filter(col => columns.includes(col));
+    
+    if (availableColumns.length > 0) {
+      selectColumns += ', ' + availableColumns.join(', ');
+    }
+    
+    // Build query
+    let query = `
+      SELECT ${selectColumns}
+      FROM employees
+    `;
+    
+    // Add filters if provided
+    const queryParams = [];
+    const conditions = [];
+    
+    if (status && columns.includes('status')) {
+      conditions.push('status = ?');
+      queryParams.push(status);
+    }
+    
+    if (department && columns.includes('department')) {
+      conditions.push('department = ?');
+      queryParams.push(department);
+    }
+    
+    if (conditions.length > 0) {
+      query += ' WHERE ' + conditions.join(' AND ');
+    }
+    
+    // Order by created_at if it exists, otherwise by id
+    if (columns.includes('created_at')) {
+      query += ' ORDER BY created_at DESC';
+    } else {
+      query += ' ORDER BY id DESC';
+    }
+    
+    console.log('Executing query:', query);
+    
+    // Execute query
+    const [employees] = await db.query(query, queryParams);
+    
+    // Map results to ensure all expected fields exist (even if as null)
+    const mappedEmployees = employees.map(emp => {
+      const employee = { ...emp };
+      
+      // Ensure these fields always exist
+      wantedColumns.forEach(col => {
+        if (employee[col] === undefined) {
+          employee[col] = null;
+        }
+      });
+      
+      // Handle name fields specially if they don't exist
+      if (!employee.first_name && !employee.last_name && employee.employee_name) {
+        // If we have employee_name but not first/last name, split it
+        const nameParts = employee.employee_name.split(' ');
+        employee.first_name = nameParts[0] || '';
+        employee.last_name = nameParts.slice(1).join(' ') || '';
+      }
+      
+      // Map role to position if needed
+      if (!employee.position && employee.role) {
+        employee.position = employee.role;
+      }
+      
+      // Map team_name to department if needed
+      if (!employee.department && employee.team_name) {
+        employee.department = employee.team_name;
+      }
+      
+      return employee;
     });
     
-    return NextResponse.json({ 
-      success: true, 
-      data: employeesWithName 
+    return NextResponse.json({
+      success: true,
+      employees: mappedEmployees
     });
   } catch (error) {
     console.error('Error fetching employees:', error);
-    return NextResponse.json(
-      { success: false, error: 'Failed to fetch employees' },
-      { status: 500 }
-    );
-  }
-}
-
-// POST to add a new employee
-export async function POST(request) {
-  try {
-    const body = await request.json();
-    const { 
-      name,
-      email, 
-      position, 
-      department, 
-      phone 
-    } = body;
-    
-    // Validation
-    if (!name || !email) {
-      return NextResponse.json(
-        { success: false, error: 'Name and email are required' },
-        { status: 400 }
-      );
-    }
-    
-    // Check if employee with this email already exists
-    const [existingEmployees] = await db.query(
-      'SELECT * FROM employees WHERE email = ?',
-      [email]
-    );
-    
-    if (existingEmployees.length > 0) {
-      return NextResponse.json(
-        { success: false, error: 'Employee with this email already exists' },
-        { status: 409 }
-      );
-    }
-    
-    // Generate invite token
-    const inviteToken = crypto.randomBytes(32).toString('hex');
-    
-    // Set invite expiry to 7 days from now
-    const inviteExpiry = new Date();
-    inviteExpiry.setDate(inviteExpiry.getDate() + 7);
-    
-    // Insert the new employee with invited status
-    const query = `
-      INSERT INTO employees 
-      (name, email, position, department, phone, status, invite_token, invite_expiry)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `;
-    
-    const [result] = await db.query(query, [
-      name, 
-      email, 
-      position,
-      department,
-      phone,
-      'invited',
-      inviteToken,
-      inviteExpiry
-    ]);
-    
-    // Create invitation link
-    const inviteLink = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/invite/accept?token=${inviteToken}`;
-    
-    // Get organization info (if implemented)
-    let orgName = 'Our Company';
-    try {
-      // This could vary based on your app's auth system
-      const token = request.headers.get('x-auth-token');
-      if (token) {
-        // Get org info based on token (if implemented)
-        // This is placeholder code
-        const [orgResult] = await db.query(
-          'SELECT name FROM organizations WHERE id = (SELECT org_id FROM users WHERE token = ?)',
-          [token]
-        );
-        if (orgResult && orgResult[0]) {
-          orgName = orgResult[0].name;
-        }
-      }
-    } catch (error) {
-      console.error('Error getting organization name:', error);
-    }
-    
-    // Generate email content
-    const htmlEmail = generateInviteEmailTemplate({
-      recipientName: name,
-      organizationName: orgName,
-      inviteLink,
-      expiryDays: 7
-    });
-    
-    // Send invitation email
-    await sendEmail({
-      to: email,
-      subject: `Invitation to join ${orgName} on TrackPro`,
-      text: `Hello ${name}, you have been invited to join ${orgName} on TrackPro. Please use the following link to accept the invitation: ${inviteLink}. This link is valid for 7 days.`,
-      html: htmlEmail
-    });
-    
     return NextResponse.json({ 
-      success: true, 
-      message: 'Employee invited successfully',
-      employee: {
-        id: result.insertId,
-        name,
-        email,
-        position,
-        department,
-        phone,
-        status: 'invited',
-        created_at: new Date()
-      }
-    }, { status: 201 });
-  } catch (error) {
-    console.error('Error creating employee:', error);
-    
-    // Handle duplicate email error
-    if (error.code === 'ER_DUP_ENTRY') {
-      return NextResponse.json(
-        { success: false, error: 'Email already exists' },
-        { status: 409 }
-      );
-    }
-    
-    return NextResponse.json(
-      { success: false, error: 'Failed to create employee' },
-      { status: 500 }
-    );
+      success: false, 
+      error: 'Server error', 
+      message: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    }, { status: 500 });
   }
-}
-
-export const GET_AUTH = withAuth(getEmployees);
-export const POST_AUTH = withAuth(createEmployee); 
+} 

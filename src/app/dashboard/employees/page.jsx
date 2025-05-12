@@ -1,90 +1,449 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
-import { 
-  User, 
-  Search, 
-  UserPlus, 
-  AlertCircle, 
-  Calendar, 
-  Building, 
-  Briefcase, 
-  Phone, 
-  Trash2, 
-  ExternalLink, 
-  ChevronLeft, 
-  ChevronRight,
-  CheckCircle
+import {
+  UserPlus,
+  Search,
+  Filter,
+  MoreHorizontal,
+  CheckCircle2,
+  Clock,
+  User,
+  Users,
+  ArrowUpDown,
+  ChevronDown,
+  Download,
+  Loader2
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { 
-  Table, 
-  TableHeader, 
-  TableRow, 
-  TableHead, 
-  TableBody, 
-  TableCell 
-} from "@/components/ui/table";
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogHeader, 
-  DialogTitle, 
-  DialogTrigger,
-  DialogFooter,
-  DialogDescription
-} from "@/components/ui/dialog";
 import {
   Card,
   CardContent,
   CardDescription,
+  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
+import { InviteEmployeeDialog } from "./invite-dialog";
 
-// Status Badge Component
-function StatusBadge({ status }) {
-  const statusStyles = {
-    active: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
-    invited: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
-    inactive: "bg-gray-100 text-gray-800 dark:bg-gray-800/30 dark:text-gray-400"
+export default function EmployeesPage() {
+  const router = useRouter();
+  const [employees, setEmployees] = useState([]);
+  const [filteredEmployees, setFilteredEmployees] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState("all");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [departmentFilter, setDepartmentFilter] = useState("all");
+  const [departments, setDepartments] = useState([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
+  const itemsPerPage = 10;
+
+  useEffect(() => {
+    fetchEmployees();
+  }, []);
+
+  useEffect(() => {
+    filterEmployees();
+  }, [employees, activeTab, searchQuery, departmentFilter]);
+
+  const fetchEmployees = async () => {
+    setIsLoading(true);
+    try {
+      const token = localStorage.getItem("token");
+      const response = await fetch("/api/employees", {
+        headers: {
+          "x-auth-token": token,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch employees");
+      }
+
+      const data = await response.json();
+      setEmployees(data.employees || []);
+      
+      // Extract unique departments
+      const uniqueDepartments = [...new Set(data.employees.map(emp => emp.department))].filter(Boolean);
+      setDepartments(uniqueDepartments);
+      
+    } catch (error) {
+      console.error("Error fetching employees:", error);
+      toast.error("Failed to load employees");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const filterEmployees = () => {
+    let filtered = [...employees];
+
+    // Filter by status (tab)
+    if (activeTab !== "all") {
+      filtered = filtered.filter((employee) => employee.status === activeTab);
+    }
+
+    // Filter by search query (name or email)
+    if (searchQuery.trim() !== "") {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(
+        (employee) =>
+          `${employee.first_name} ${employee.last_name}`.toLowerCase().includes(query) ||
+          (employee.email && employee.email.toLowerCase().includes(query))
+      );
+    }
+
+    // Filter by department
+    if (departmentFilter && departmentFilter !== "all") {
+      filtered = filtered.filter((employee) => employee.department === departmentFilter);
+    }
+
+    setFilteredEmployees(filtered);
+    
+    // Calculate total pages
+    setTotalPages(Math.max(1, Math.ceil(filtered.length / itemsPerPage)));
+    
+    // Reset to first page when filters change
+    if (currentPage > 1) {
+      setCurrentPage(1);
+    }
+  };
+
+  const getPaginatedEmployees = () => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return filteredEmployees.slice(startIndex, endIndex);
+  };
+
+  const getInitials = (firstName, lastName) => {
+    return `${firstName?.charAt(0) || ""}${lastName?.charAt(0) || ""}`.toUpperCase();
+  };
+
+  const formatDate = (dateString) => {
+    if (!dateString) return "N/A";
+    const date = new Date(dateString);
+    return date.toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  };
+
+  const getStatusBadge = (status) => {
+    switch (status) {
+      case "active":
+        return (
+          <Badge variant="outline" className="bg-green-50 text-green-600 border-green-200">
+            <CheckCircle2 className="w-3 h-3 mr-1" /> Active
+          </Badge>
+        );
+      case "invited":
+        return (
+          <Badge variant="outline" className="bg-blue-50 text-blue-600 border-blue-200">
+            <Clock className="w-3 h-3 mr-1" /> Invited
+          </Badge>
+        );
+      case "inactive":
+        return (
+          <Badge variant="outline" className="bg-gray-100 text-gray-600 border-gray-200">
+            Inactive
+          </Badge>
+        );
+      case "pending":
+        return (
+          <Badge variant="outline" className="bg-amber-50 text-amber-600 border-amber-200">
+            <Clock className="w-3 h-3 mr-1" /> Pending
+          </Badge>
+        );
+      default:
+        return (
+          <Badge variant="outline" className="bg-gray-100 text-gray-600">
+            {status}
+          </Badge>
+        );
+    }
+  };
+
+  const handleExportCSV = () => {
+    // Implement export functionality
+    toast.info("Exporting employee data...");
+  };
+
+  const handleInviteEmployee = () => {
+    setInviteDialogOpen(true);
+  };
+
+  const handleViewEmployee = (id) => {
+    router.push(`/dashboard/employees/${id}`);
+  };
+
+  const handleResendInvite = async (id) => {
+    try {
+      const token = localStorage.getItem("token");
+      const response = await fetch(`/api/employees/${id}/resend-invite`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-auth-token": token,
+        },
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Failed to resend invitation");
+      }
+
+      toast.success("Invitation resent successfully");
+    } catch (error) {
+      console.error("Error resending invitation:", error);
+      toast.error(`Error: ${error.message}`);
+    }
   };
 
   return (
-    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${statusStyles[status] || ""}`}>
-      {status === "active" && "Active"}
-      {status === "invited" && "Invited"}
-      {status === "inactive" && "Inactive"}
-    </span>
+    <div className="container mx-auto p-6 max-w-7xl">
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          <h1 className="text-3xl font-bold flex items-center gap-2">
+            <Users className="h-7 w-7 text-primary" />
+            Employees
+          </h1>
+          <p className="text-muted-foreground mt-1">
+            Manage your organization's employees
+          </p>
+        </div>
+        <Button onClick={handleInviteEmployee}>
+          <UserPlus className="h-4 w-4 mr-2" />
+          Invite Employee
+        </Button>
+      </div>
+
+      <div className="grid gap-6">
+        <Card>
+          <Tabs defaultValue="all" value={activeTab} onValueChange={setActiveTab}>
+            <div className="flex flex-wrap justify-between items-center p-6 pb-3">
+              <TabsList>
+                <TabsTrigger value="all" className="gap-1">
+                  <Users className="h-4 w-4" /> All
+                </TabsTrigger>
+                <TabsTrigger value="active" className="gap-1">
+                  <CheckCircle2 className="h-4 w-4" /> Active
+                </TabsTrigger>
+                <TabsTrigger value="invited" className="gap-1">
+                  <Clock className="h-4 w-4" /> Invited
+                </TabsTrigger>
+              </TabsList>
+              <Button
+                variant="outline"
+                size="sm"
+                className="px-2.5 hidden md:flex"
+                onClick={handleExportCSV}
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Export CSV
+              </Button>
+            </div>
+
+            <CardContent className="p-6 pt-3">
+              <div className="flex flex-col sm:flex-row gap-3 mb-6">
+                <div className="relative flex-1">
+                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search by name or email..."
+                    className="pl-9"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                </div>
+                <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
+                  <SelectTrigger className="w-full sm:w-[180px]">
+                    <div className="flex items-center gap-2">
+                      <Filter className="h-4 w-4" />
+                      <span className="flex-1 text-left">
+                        {departmentFilter || "Department"}
+                      </span>
+                    </div>
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Departments</SelectItem>
+                    {departments.map((dept) => (
+                      <SelectItem key={dept} value={dept}>
+                        {dept}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <TabsContent value="all" className="m-0">
+                <EmployeesTable
+                  employees={getPaginatedEmployees()}
+                  isLoading={isLoading}
+                  getInitials={getInitials}
+                  formatDate={formatDate}
+                  getStatusBadge={getStatusBadge}
+                  handleViewEmployee={handleViewEmployee}
+                  handleResendInvite={handleResendInvite}
+                />
+              </TabsContent>
+              <TabsContent value="active" className="m-0">
+                <EmployeesTable
+                  employees={getPaginatedEmployees()}
+                  isLoading={isLoading}
+                  getInitials={getInitials}
+                  formatDate={formatDate}
+                  getStatusBadge={getStatusBadge}
+                  handleViewEmployee={handleViewEmployee}
+                  handleResendInvite={handleResendInvite}
+                />
+              </TabsContent>
+              <TabsContent value="invited" className="m-0">
+                <EmployeesTable
+                  employees={getPaginatedEmployees()}
+                  isLoading={isLoading}
+                  getInitials={getInitials}
+                  formatDate={formatDate}
+                  getStatusBadge={getStatusBadge}
+                  handleViewEmployee={handleViewEmployee}
+                  handleResendInvite={handleResendInvite}
+                />
+              </TabsContent>
+
+              {filteredEmployees.length > 0 && (
+                <div className="mt-4 flex items-center justify-between">
+                  <p className="text-sm text-muted-foreground">
+                    Showing <span className="font-medium">{getPaginatedEmployees().length}</span> of{" "}
+                    <span className="font-medium">{filteredEmployees.length}</span> employees
+                  </p>
+                  <Pagination>
+                    <PaginationContent>
+                      <PaginationItem>
+                        <PaginationPrevious 
+                          href="#" 
+                          onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                          aria-disabled={currentPage === 1}
+                          className={currentPage === 1 ? "pointer-events-none opacity-50" : ""}
+                        />
+                      </PaginationItem>
+                      
+                      {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+                        const page = i + 1;
+                        return (
+                          <PaginationItem key={page}>
+                            <PaginationLink 
+                              href="#" 
+                              onClick={() => setCurrentPage(page)}
+                              isActive={currentPage === page}
+                            >
+                              {page}
+                            </PaginationLink>
+                          </PaginationItem>
+                        );
+                      })}
+                      
+                      {totalPages > 5 && currentPage < totalPages - 2 && (
+                        <PaginationItem>
+                          <PaginationEllipsis />
+                        </PaginationItem>
+                      )}
+                      
+                      {totalPages > 5 && currentPage < totalPages && (
+                        <PaginationItem>
+                          <PaginationLink 
+                            href="#" 
+                            onClick={() => setCurrentPage(totalPages)}
+                            isActive={currentPage === totalPages}
+                          >
+                            {totalPages}
+                          </PaginationLink>
+                        </PaginationItem>
+                      )}
+                      
+                      <PaginationItem>
+                        <PaginationNext 
+                          href="#" 
+                          onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                          aria-disabled={currentPage === totalPages}
+                          className={currentPage === totalPages ? "pointer-events-none opacity-50" : ""}
+                        />
+                      </PaginationItem>
+                    </PaginationContent>
+                  </Pagination>
+                </div>
+              )}
+            </CardContent>
+          </Tabs>
+        </Card>
+      </div>
+
+      <InviteEmployeeDialog 
+        open={inviteDialogOpen} 
+        onOpenChange={setInviteDialogOpen} 
+      />
+    </div>
   );
 }
 
-// Employee Table Component
-function EmployeeTable({ employees, onDelete, isLoading }) {
-  const router = useRouter();
-
-  const handleRowClick = (employeeId) => {
-    router.push(`/dashboard/employees/${employeeId}`);
-  };
-
+function EmployeesTable({
+  employees,
+  isLoading,
+  getInitials,
+  formatDate,
+  getStatusBadge,
+  handleViewEmployee,
+  handleResendInvite,
+}) {
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center py-8">
-        <div className="animate-pulse flex flex-col gap-4 w-full">
-          <div className="h-12 bg-muted rounded"></div>
-          {[1, 2, 3, 4, 5].map((i) => (
-            <div key={i} className="h-16 bg-muted rounded"></div>
-          ))}
-        </div>
+      <div className="flex items-center justify-center py-10">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <span className="ml-2 text-muted-foreground">Loading employees...</span>
       </div>
     );
   }
@@ -92,352 +451,76 @@ function EmployeeTable({ employees, onDelete, isLoading }) {
   if (employees.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-center">
-        <User size={48} className="text-muted-foreground mb-4" />
-        <h3 className="text-xl font-semibold mb-2">No employees found</h3>
-        <p className="text-muted-foreground mb-6">
-          Add your first employee by clicking the "Invite Employee" button above.
+        <Users className="h-12 w-12 text-muted-foreground/50 mb-4" />
+        <h3 className="text-lg font-semibold">No employees found</h3>
+        <p className="text-muted-foreground">
+          Try adjusting your search or filter criteria.
         </p>
       </div>
     );
   }
 
   return (
-    <div className="rounded-md border overflow-hidden">
+    <div className="rounded-md border">
       <Table>
-        <TableHeader className="bg-muted/50">
+        <TableHeader>
           <TableRow>
-            <TableHead className="w-[250px]">Name</TableHead>
+            <TableHead className="w-[250px]">Employee</TableHead>
             <TableHead>Position</TableHead>
-            <TableHead className="hidden md:table-cell">Department</TableHead>
-            <TableHead className="hidden lg:table-cell">Status</TableHead>
-            <TableHead className="hidden lg:table-cell">Hire Date</TableHead>
+            <TableHead>Department</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead>Joined Date</TableHead>
             <TableHead className="text-right">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {employees.map((employee) => (
-            <TableRow key={employee.id} className="cursor-pointer hover:bg-muted/50" onClick={() => handleRowClick(employee.id)}>
+            <TableRow key={employee.id}>
               <TableCell className="font-medium">
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center">
-                    <User size={14} />
-                  </div>
+                  <Avatar>
+                    <AvatarImage src={employee.avatar_url} alt={`${employee.first_name} ${employee.last_name}`} />
+                    <AvatarFallback className="bg-primary/10 text-primary">
+                      {getInitials(employee.first_name, employee.last_name)}
+                    </AvatarFallback>
+                  </Avatar>
                   <div>
-                    <div className="font-medium">{employee.name}</div>
-                    <div className="text-xs text-muted-foreground">{employee.email}</div>
+                    <div className="font-medium">{`${employee.first_name} ${employee.last_name}`}</div>
+                    <div className="text-sm text-muted-foreground">{employee.email}</div>
                   </div>
                 </div>
               </TableCell>
               <TableCell>{employee.position || "—"}</TableCell>
-              <TableCell className="hidden md:table-cell">{employee.department || "—"}</TableCell>
-              <TableCell className="hidden lg:table-cell">
-                <StatusBadge status={employee.status} />
-              </TableCell>
-              <TableCell className="hidden lg:table-cell">
-                {employee.hire_date ? new Date(employee.hire_date).toLocaleDateString() : "—"}
-              </TableCell>
+              <TableCell>{employee.department || "—"}</TableCell>
+              <TableCell>{getStatusBadge(employee.status)}</TableCell>
+              <TableCell>{formatDate(employee.hire_date)}</TableCell>
               <TableCell className="text-right">
-                <div className="flex items-center justify-end gap-2" onClick={(e) => e.stopPropagation()}>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={() => router.push(`/dashboard/employees/${employee.id}`)}
-                  >
-                    <ExternalLink size={14} />
-                    <span className="sr-only">View</span>
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="text-red-500 hover:text-red-600"
-                    onClick={() => onDelete(employee.id, employee.name)}
-                  >
-                    <Trash2 size={14} />
-                    <span className="sr-only">Delete</span>
-                  </Button>
-                </div>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" className="h-8 w-8 p-0" aria-label="Open menu">
+                      <MoreHorizontal className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                    <DropdownMenuItem onClick={() => handleViewEmployee(employee.id)}>
+                      View Details
+                    </DropdownMenuItem>
+                    {employee.status === "invited" && (
+                      <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={() => handleResendInvite(employee.id)}>
+                          Resend Invitation
+                        </DropdownMenuItem>
+                      </>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </TableCell>
             </TableRow>
           ))}
         </TableBody>
       </Table>
     </div>
-  );
-}
-
-// Replace the InviteEmployeeDialog component with a link to the new invite page
-function InviteEmployeeButton() {
-  const router = useRouter();
-  
-  return (
-    <Button onClick={() => router.push('/dashboard/employees/invite')} className="gap-2">
-      <UserPlus size={16} />
-      <span>Invite Employee</span>
-    </Button>
-  );
-}
-
-// Delete Confirmation Dialog
-function DeleteConfirmationDialog({ employeeId, employeeName, isOpen, onClose, onConfirm }) {
-  const [isDeleting, setIsDeleting] = useState(false);
-
-  const handleDelete = async () => {
-    setIsDeleting(true);
-    try {
-      const token = localStorage.getItem("token");
-      const response = await fetch(`/api/employees/${employeeId}`, {
-        method: "DELETE",
-        headers: {
-          "x-auth-token": token
-        }
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Failed to delete employee");
-      }
-
-      toast.success(`${employeeName} was deleted successfully`);
-      onConfirm();
-    } catch (error) {
-      toast.error(`Error: ${error.message}`);
-    } finally {
-      setIsDeleting(false);
-      onClose();
-    }
-  };
-
-  return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Delete Employee</DialogTitle>
-          <DialogDescription>
-            Are you sure you want to delete {employeeName}? This action cannot be undone.
-          </DialogDescription>
-        </DialogHeader>
-        <div className="bg-muted/50 p-3 rounded-md flex items-center gap-2 mt-2">
-          <AlertCircle size={20} className="text-destructive" />
-          <p className="text-sm">All data associated with this employee will be permanently removed.</p>
-        </div>
-        <DialogFooter className="gap-2 sm:gap-0">
-          <Button variant="outline" onClick={onClose} disabled={isDeleting}>Cancel</Button>
-          <Button 
-            variant="destructive" 
-            onClick={handleDelete} 
-            disabled={isDeleting}
-          >
-            {isDeleting ? "Deleting..." : "Delete Employee"}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-// Pagination Component
-function Pagination({ currentPage, totalPages, onPageChange }) {
-  return (
-    <div className="flex items-center justify-center space-x-2 py-4">
-      <Button
-        variant="outline"
-        size="icon"
-        onClick={() => onPageChange(currentPage - 1)}
-        disabled={currentPage <= 1}
-      >
-        <ChevronLeft className="h-4 w-4" />
-        <span className="sr-only">Previous page</span>
-      </Button>
-      <div className="text-sm text-muted-foreground">
-        Page {currentPage} of {totalPages}
-      </div>
-      <Button
-        variant="outline"
-        size="icon"
-        onClick={() => onPageChange(currentPage + 1)}
-        disabled={currentPage >= totalPages}
-      >
-        <ChevronRight className="h-4 w-4" />
-        <span className="sr-only">Next page</span>
-      </Button>
-    </div>
-  );
-}
-
-// Main Page Component
-export default function EmployeesPage() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const [employees, setEmployees] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [deleteDialog, setDeleteDialog] = useState({
-    isOpen: false,
-    employeeId: null,
-    employeeName: ""
-  });
-  
-  // Check for invitation acceptance
-  const invitationAccepted = searchParams.get('invitation') === 'accepted';
-  const [showInviteSuccess, setShowInviteSuccess] = useState(invitationAccepted);
-  const [acceptedEmployee, setAcceptedEmployee] = useState(null);
-  
-  // Function to fetch employees
-  const fetchEmployees = async () => {
-    try {
-      setIsLoading(true);
-      const token = localStorage.getItem("token");
-      
-      const response = await fetch('http://localhost:3000/api/employees')
-      
-      if (!response.ok) {
-        throw new Error("Failed to fetch employees");
-      }
-
-      const data = await response.json();
-      // Handle different response formats
-      if (data.data) {
-        // New API format
-        setEmployees(data.data);
-        setTotalPages(1); // Default to 1 page if pagination not provided
-      } else if (data.employees) {
-        // Old API format
-        setEmployees(data.employees);
-        setTotalPages(data.pagination?.totalPages || 1);
-      } else {
-        // Fallback if unexpected format
-        setEmployees([]);
-        setTotalPages(1);
-      }
-    } catch (error) {
-      console.error("Error fetching employees:", error);
-      toast.error(`Error: ${error.message}`);
-      setEmployees([]);
-      setTotalPages(1);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-  
-  // Check for accepted employee data in localStorage
-  useEffect(() => {
-    // Check for invitation parameter and localStorage data
-    if (invitationAccepted) {
-      try {
-        const storedEmployee = localStorage.getItem('accepted_employee');
-        if (storedEmployee) {
-          setAcceptedEmployee(JSON.parse(storedEmployee));
-          // Clear the data after reading it
-          localStorage.removeItem('accepted_employee');
-        }
-      } catch (error) {
-        console.error("Error parsing accepted employee data:", error);
-      }
-      
-      // Auto-hide the success message after 8 seconds
-      const timer = setTimeout(() => {
-        setShowInviteSuccess(false);
-      }, 8000);
-      
-      return () => clearTimeout(timer);
-    }
-  }, [invitationAccepted]);
-
-  // Initial load and when search/page changes
-  useEffect(() => {
-    fetchEmployees();
-  }, [page, searchTerm]);
-
-  // Handle search input
-  const handleSearch = (e) => {
-    setSearchTerm(e.target.value);
-    setPage(1); // Reset to first page on new search
-  };
-
-  // Handle delete confirmation
-  const handleDeleteClick = (id, name) => {
-    setDeleteDialog({
-      isOpen: true,
-      employeeId: id,
-      employeeName: name
-    });
-  };
-
-  // Handle successful delete
-  const handleDeleteSuccess = () => {
-    fetchEmployees();
-  };
-
-  return (
-    <>
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold tracking-tight mb-1">Employees</h1>
-        <p className="text-muted-foreground">
-          Manage your organization's employees and send invitations.
-        </p>
-      </div>
-      
-      {/* Invitation success message */}
-      {showInviteSuccess && (
-        <Alert className="mb-6 bg-green-50 text-green-800 dark:bg-green-900/30 dark:text-green-400 border-green-200 dark:border-green-900">
-          <CheckCircle className="h-4 w-4" />
-          <AlertTitle>Invitation Accepted!</AlertTitle>
-          <AlertDescription>
-            {acceptedEmployee ? (
-              <>
-                <span className="font-medium">{acceptedEmployee.name}</span> has successfully joined 
-                <span className="font-medium"> {acceptedEmployee.organization}</span>. They can now access 
-                the system with full employee capabilities.
-              </>
-            ) : (
-              'Employee invitation has been successfully accepted.'
-            )}
-          </AlertDescription>
-        </Alert>
-      )}
-      
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-6">
-        <div className="w-full md:w-64">
-          <div className="relative">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search employees..."
-              value={searchTerm}
-              onChange={handleSearch}
-              className="pl-8"
-            />
-          </div>
-        </div>
-        <InviteEmployeeButton />
-      </div>
-      
-      <Card>
-        <CardContent className="p-0">
-          <EmployeeTable
-            employees={employees}
-            onDelete={handleDeleteClick}
-            isLoading={isLoading}
-          />
-        </CardContent>
-      </Card>
-      
-      {totalPages > 1 && (
-        <Pagination
-          currentPage={page}
-          totalPages={totalPages}
-          onPageChange={setPage}
-        />
-      )}
-      
-      <DeleteConfirmationDialog
-        employeeId={deleteDialog.employeeId}
-        employeeName={deleteDialog.employeeName}
-        isOpen={deleteDialog.isOpen}
-        onClose={() => setDeleteDialog({ ...deleteDialog, isOpen: false })}
-        onConfirm={handleDeleteSuccess}
-      />
-    </>
   );
 } 
