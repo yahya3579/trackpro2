@@ -113,17 +113,6 @@ export default function LeaveManagementPage() {
   const [presenceData, setPresenceData] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   
-  // New leave request form state
-  const [isNewLeaveOpen, setIsNewLeaveOpen] = useState(false);
-  const [newLeave, setNewLeave] = useState({
-    employee_id: "",
-    leave_type_id: "",
-    start_date: "",
-    end_date: "",
-    total_days: "",
-    reason: "",
-  });
-  
   // Leave action dialog state
   const [leaveActionDialogOpen, setLeaveActionDialogOpen] = useState(false);
   const [selectedLeave, setSelectedLeave] = useState(null);
@@ -138,12 +127,6 @@ export default function LeaveManagementPage() {
   useEffect(() => {
     fetchLeaveRequests();
     fetchPresenceData();
-  }, [selectedEmployee]);
-
-  useEffect(() => {
-    if (selectedEmployee !== "all") {
-      setNewLeave((prev) => ({ ...prev, employee_id: selectedEmployee }));
-    }
   }, [selectedEmployee]);
 
   const fetchEmployees = async () => {
@@ -171,7 +154,7 @@ export default function LeaveManagementPage() {
       if (data.employees && data.employees.length > 0) {
         // In a real app, you would get the current user's ID from auth context
         // For this example, we'll use the first employee
-        setNewLeave(prev => ({ ...prev, employee_id: data.employees[0].id.toString() }));
+        setSelectedLeave(prev => ({ ...prev, employee_id: data.employees[0].id.toString() }));
       }
     } catch (error) {
       console.error("Error fetching employees:", error);
@@ -197,7 +180,7 @@ export default function LeaveManagementPage() {
       
       // Set first leave type as default
       if (data.leaveTypes && data.leaveTypes.length > 0) {
-        setNewLeave(prev => ({ ...prev, leave_type_id: data.leaveTypes[0].id.toString() }));
+        setSelectedLeave(prev => ({ ...prev, leave_type_id: data.leaveTypes[0].id.toString() }));
       }
     } catch (error) {
       console.error("Error fetching leave types:", error);
@@ -261,66 +244,6 @@ export default function LeaveManagementPage() {
       console.error("Error fetching presence data:", error);
       toast.error("Failed to load presence data");
       setPresenceData([]);
-    }
-  };
-
-  const handleCreateLeave = async (e) => {
-    e.preventDefault();
-    
-    try {
-      // Validate form
-      if (!newLeave.employee_id || !newLeave.leave_type_id || !newLeave.start_date || !newLeave.end_date) {
-        toast.error("Please fill in all required fields");
-        return;
-      }
-      
-      // Calculate total days
-      const start = parseISO(newLeave.start_date);
-      const end = parseISO(newLeave.end_date);
-      const totalDays = differenceInDays(end, start) + 1;
-      
-      if (totalDays < 1) {
-        toast.error("End date must be after start date");
-        return;
-      }
-      
-      const token = localStorage.getItem("token");
-      if (!token) return;
-      
-      const response = await fetch("/api/leave-management", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-auth-token": token,
-        },
-        body: JSON.stringify({
-          ...newLeave,
-          total_days: totalDays,
-        }),
-      });
-      
-      const data = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to create leave request");
-      }
-      
-      toast.success("Leave request created successfully");
-      setIsNewLeaveOpen(false);
-      fetchLeaveRequests();
-      
-      // Reset form
-      setNewLeave({
-        employee_id: employees[0]?.id?.toString() || "",
-        leave_type_id: leaveTypes[0]?.id?.toString() || "",
-        start_date: "",
-        end_date: "",
-        reason: "",
-      });
-      
-    } catch (error) {
-      console.error("Error creating leave request:", error);
-      toast.error(error.message || "Failed to create leave request");
     }
   };
 
@@ -437,11 +360,6 @@ export default function LeaveManagementPage() {
         </Select>
 
         <div className="flex-1"></div>
-
-        <Button onClick={() => setIsNewLeaveOpen(true)}>
-          <Plus className="mr-2 h-4 w-4" /> 
-          New Leave Request
-        </Button>
       </div>
 
       <div className="space-y-6">
@@ -614,126 +532,6 @@ export default function LeaveManagementPage() {
           </CardFooter>
         </Card>
       </div>
-
-      {/* New Leave Request Dialog */}
-      <Dialog open={isNewLeaveOpen} onOpenChange={setIsNewLeaveOpen}>
-        <DialogContent className="sm:max-w-[525px]">
-          <DialogHeader>
-            <DialogTitle>Request Leave</DialogTitle>
-            <DialogDescription>
-              Submit a new leave request. Fill in all required fields.
-            </DialogDescription>
-          </DialogHeader>
-          <form onSubmit={handleCreateLeave}>
-            <div className="grid gap-4 py-4">
-              <div className="grid gap-2">
-                <Label htmlFor="leaveType">Leave Type</Label>
-                <Select
-                  value={newLeave.leave_type_id}
-                  onValueChange={(value) =>
-                    setNewLeave({ ...newLeave, leave_type_id: value })
-                  }
-                  required
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select leave type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {leaveTypes.map((type) => (
-                      <SelectItem key={type.id} value={type.id.toString()}>
-                        <div className="flex items-center gap-2">
-                          <div
-                            className="w-3 h-3 rounded-full"
-                            style={{ backgroundColor: type.color || "#888" }}
-                          ></div>
-                          <span>{type.name}</span>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                  <Label>Start Date</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className={`justify-start text-left font-normal ${
-                          !newLeave.start_date && "text-muted-foreground"
-                        }`}
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {newLeave.start_date
-                          ? format(parseISO(newLeave.start_date), "PPP")
-                          : "Select date"}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0">
-                      <Calendar
-                        mode="single"
-                        selected={newLeave.start_date ? parseISO(newLeave.start_date) : undefined}
-                        onSelect={(date) =>
-                          setNewLeave({
-                            ...newLeave,
-                            start_date: date ? format(date, "yyyy-MM-dd") : "",
-                          })
-                        }
-                      />
-                    </PopoverContent>
-                  </Popover>
-                </div>
-
-                <div className="grid gap-2">
-                  <Label>End Date</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className={`justify-start text-left font-normal ${
-                          !newLeave.end_date && "text-muted-foreground"
-                        }`}
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {newLeave.end_date
-                          ? format(parseISO(newLeave.end_date), "PPP")
-                          : "Select date"}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0">
-                      <Calendar
-                        mode="single"
-                        selected={newLeave.end_date ? parseISO(newLeave.end_date) : undefined}
-                        onSelect={(date) =>
-                          setNewLeave({
-                            ...newLeave,
-                            end_date: date ? format(date, "yyyy-MM-dd") : "",
-                          })
-                        }
-                      />
-                    </PopoverContent>
-                  </Popover>
-                </div>
-              </div>
-
-              <div className="grid gap-2">
-                <Label htmlFor="reason">Reason</Label>
-                <Textarea
-                  id="reason"
-                  value={newLeave.reason}
-                  onChange={(e) => setNewLeave({ ...newLeave, reason: e.target.value })}
-                  required
-                />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button type="submit">Submit</Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
 
       {/* Leave Action Dialog */}
       <Dialog open={leaveActionDialogOpen} onOpenChange={setLeaveActionDialogOpen}>
