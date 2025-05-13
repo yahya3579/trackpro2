@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
-export default function EmployeeAuthCheck({ children }) {
+export default function SuperAdminAuthCheck({ children }) {
   const router = useRouter();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -22,16 +22,15 @@ export default function EmployeeAuthCheck({ children }) {
     try {
       const user = JSON.parse(userData);
       
-      // Check if user is a team member - accept both formats
+      // Check if user has Admin role
       const role = user.role?.toLowerCase() || '';
-      const isTeamMember = role.replace(/\s/g, '_') === 'team_member' || 
-                           role === 'team member';
+      const isAdmin = role === 'admin';
       
-      if (isTeamMember) {
-        // Only Team Members can access the employee dashboard
+      if (isAdmin) {
+        // Only Admin can access the super-admin dashboard
         setIsAuthenticated(true);
       } else {
-        // Redirect to regular dashboard if not a team member
+        // Redirect to regular dashboard if not an admin
         router.push('/dashboard');
       }
     } catch (error) {

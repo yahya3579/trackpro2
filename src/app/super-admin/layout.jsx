@@ -1,7 +1,7 @@
 "use client";
 
 import { Sidebar } from "./components/sidebar";
-import SuperAdminCheck from "@/components/super-admin-check";
+// import SuperAdminCheck from "@/components/super-admin-check";
 
 export default function SuperAdminLayout({ children }) {
   return (

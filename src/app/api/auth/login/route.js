@@ -15,7 +15,7 @@ export async function POST(request) {
       return NextResponse.json({ message: 'Email and password are required' }, { status: 400 });
     }
 
-    // First check if user exists in organizations table
+    // Check if user exists in organizations table
     const [organizations] = await db.query('SELECT * FROM organizations WHERE email = ?', [email]);
     
     if (organizations.length > 0) {
@@ -40,6 +40,7 @@ export async function POST(request) {
       return NextResponse.json({
         message: 'Login successful',
         token,
+        redirectUrl: '/dashboard', // Admin dashboard
         user: {
           id: user.id,
           name: user.name,
@@ -49,46 +50,11 @@ export async function POST(request) {
       });
     }
 
-    // Check if user exists in super_admins table
-    const [superAdmins] = await db.query('SELECT * FROM super_admins WHERE email = ?', [email]);
-    
-    if (superAdmins.length > 0) {
-      // User is a super admin
-      const admin = superAdmins[0];
-
-      // Check password
-      const isPasswordMatch = await bcrypt.compare(password, admin.password);
-      
-      if (!isPasswordMatch) {
-        return NextResponse.json({ message: 'Invalid credentials' }, { status: 401 });
-      }
-
-      // Generate token
-      const token = jwt.sign(
-        { id: admin.id, email: admin.email, name: admin.name, role: 'super_admin' },
-        JWT_SECRET,
-        { expiresIn: '1d' }
-      );
-
-      // Return token and user info
-      return NextResponse.json({
-        message: 'Login successful',
-        token,
-        user: {
-          id: admin.id,
-          name: admin.name,
-          email: admin.email,
-          role: 'super_admin',
-          username: admin.username
-        }
-      });
-    }
-
     // Check if user exists in users table (employees who accepted invitations)
-    const [users] = await db.query('SELECT u.*, e.employee_name FROM users u JOIN employees e ON u.email = e.email WHERE u.email = ?', [email]);
+    const [users] = await db.query('SELECT u.*, e.employee_name, e.role FROM users u JOIN employees e ON u.email = e.email WHERE u.email = ?', [email]);
     
     if (users.length > 0) {
-      // User is an employee
+      // User exists
       const user = users[0];
 
       // Check password
@@ -98,15 +64,29 @@ export async function POST(request) {
         return NextResponse.json({ message: 'Invalid credentials' }, { status: 401 });
       }
 
+      // Determine user role and set appropriate redirect
+      const role = user.role || 'employee';
+      
+      // Check if the user is a team member - handle both "Team Member" and "team_member" formats
+      const isTeamMember = role.toLowerCase().replace(/\s/g, '_') === 'team_member' || 
+                          role.toLowerCase() === 'team member';
+      
+      // Check if the user is an admin
+      const isAdmin = role.toLowerCase() === 'admin';
+      
+      // Set redirect based on role
+      let redirectUrl;
+      if (isTeamMember) {
+        redirectUrl = '/employee-dashboard';
+      } else if (isAdmin) {
+        redirectUrl = '/super-admin';
+      } else {
+        redirectUrl = '/dashboard';
+      }
+
       // Generate token
       const token = jwt.sign(
-        { 
-          id: user.id, 
-          email: user.email, 
-          name: user.employee_name, 
-          role: user.role,
-          organization_id: user.organization_id
-        },
+        { id: user.id, email: user.email, name: user.employee_name, role: role },
         JWT_SECRET,
         { expiresIn: '1d' }
       );
@@ -115,17 +95,17 @@ export async function POST(request) {
       return NextResponse.json({
         message: 'Login successful',
         token,
+        redirectUrl: redirectUrl,
         user: {
           id: user.id,
           name: user.employee_name,
           email: user.email,
-          role: user.role,
-          userType: 'employee'
+          role: role
         }
       });
     }
 
-    // If we reach here, no user was found
+    // If we get here, user was not found
     return NextResponse.json({ message: 'Invalid credentials' }, { status: 401 });
   } catch (error) {
     console.error('Login error:', error);

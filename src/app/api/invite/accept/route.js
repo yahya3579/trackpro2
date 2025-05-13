@@ -155,17 +155,21 @@ export async function POST(request) {
         [email]
       );
       
+      // Preserve the original role exactly as it was set
+      const employeeRole = employee.role;
+      console.log("Preserving original employee role:", employeeRole);
+      
       if (existingUser.length === 0) {
         // Create user account with the hashed password - let the database auto-generate the ID
         await db.query(
           'INSERT INTO users (email, password, role, organization_id, created_at, updated_at) VALUES (?, ?, ?, ?, NOW(), NOW())',
-          [email, hashedPassword, employee.role, organizationId]
+          [email, hashedPassword, employeeRole, organizationId]
         );
       } else {
         // Update existing user
         await db.query(
           'UPDATE users SET password = ?, role = ?, updated_at = NOW() WHERE email = ?',
-          [hashedPassword, employee.role, email]
+          [hashedPassword, employeeRole, email]
         );
       }
     } catch (insertError) {

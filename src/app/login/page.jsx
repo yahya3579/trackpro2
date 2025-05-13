@@ -96,11 +96,20 @@ export default function LoginPage() {
       localStorage.setItem('token', data.token);
       localStorage.setItem('user', JSON.stringify(data.user));
       
-      // Redirect based on user type/role
-      if (data.user.userType === 'employee') {
-        router.push('/employee-dashboard');
+      // Use the redirectUrl from the API response
+      if (data.redirectUrl) {
+        router.push(data.redirectUrl);
       } else {
-        router.push('/dashboard');
+        // Fallback routing based on role if redirectUrl is not provided
+        const roleLowercase = data.user.role?.toLowerCase() || '';
+        
+        if (roleLowercase.replace(/\s/g, '_') === 'team_member' || roleLowercase === 'team member') {
+          router.push('/employee-dashboard');
+        } else if (roleLowercase === 'admin') {
+          router.push('/super-admin');
+        } else {
+          router.push('/dashboard');
+        }
       }
     } catch (error) {
       setError(error.message);

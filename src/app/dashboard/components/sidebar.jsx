@@ -23,14 +23,12 @@ import {
   LogOut,
   User,
   Home,
-  ShieldAlert,
   ChevronRight,
   ChevronLeft
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { SuperAdminLoginModal } from "@/components/super-admin-login-modal";
 import {
   Tooltip,
   TooltipContent,
@@ -138,7 +136,6 @@ export function Sidebar({ className }) {
     role: ''
   });
   const [isLoading, setIsLoading] = useState(true);
-  const [isSuperAdminModalOpen, setIsSuperAdminModalOpen] = useState(false);
   const [showMoreItems, setShowMoreItems] = useState(true);
   const [showSystemItems, setShowSystemItems] = useState(true);
 
@@ -199,10 +196,6 @@ export function Sidebar({ className }) {
     
     // Redirect to login page
     router.push('/login');
-  };
-
-  const handleSuperAdminClick = () => {
-    setIsSuperAdminModalOpen(true);
   };
 
   // Function to render sidebar item with tooltip when collapsed
@@ -432,18 +425,6 @@ export function Sidebar({ className }) {
             "grid gap-1",
             collapsed ? "px-0" : "px-2"
           )}>
-            {/* {userData.role !== 'super_admin' && !collapsed && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="justify-start text-xs bg-gradient-to-r from-primary/5 to-purple-500/5 border-muted-foreground/20 hover:from-primary/10 hover:to-purple-500/10"
-                onClick={handleSuperAdminClick}
-              >
-                <ShieldAlert className="h-3.5 w-3.5 mr-2 text-primary" />
-                <span>Super Admin Login</span>
-              </Button>
-            )} */}
-            
             <Button
               variant="ghost"
               size="sm"
@@ -465,13 +446,6 @@ export function Sidebar({ className }) {
         {/* Gradient overlay at the bottom */}
         <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-primary/5 to-transparent pointer-events-none"></div>
       </div>
-      
-      {isSuperAdminModalOpen && (
-        <SuperAdminLoginModal
-          isOpen={isSuperAdminModalOpen}
-          onClose={() => setIsSuperAdminModalOpen(false)}
-        />
-      )}
     </>
   );
 } 

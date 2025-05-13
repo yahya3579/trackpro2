@@ -34,12 +34,6 @@ export async function POST(request) {
 
     const orgId = result.insertId;
 
-    // Automatically grant super admin access to the organization owner
-    await db.query(
-      'INSERT INTO super_admins (name, email, username, password, org_id, is_org_admin) VALUES (?, ?, ?, ?, ?, ?)',
-      [name, email, email.split('@')[0], hashedPassword, orgId, true]
-    );
-
     // Generate JWT token
     const token = jwt.sign(
       { id: orgId, email, name, role: 'organization_admin' },

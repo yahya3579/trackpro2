@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -12,13 +13,35 @@ import {
   ChevronLeft,
   ChevronRight,
   Home,
-  LogOut
+  LogOut,
+  User,
+  Settings
 } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 
 export function Sidebar({ isSidebarOpen, setIsSidebarOpen }) {
   const pathname = usePathname();
   const router = useRouter();
+  const [userData, setUserData] = useState({
+    name: 'Employee',
+    email: ''
+  });
+  
+  // Fetch user data from localStorage on component mount
+  useEffect(() => {
+    const storedUser = localStorage.getItem('user');
+    if (storedUser) {
+      try {
+        const parsedUser = JSON.parse(storedUser);
+        setUserData({
+          name: parsedUser.name || 'Employee',
+          email: parsedUser.email || ''
+        });
+      } catch (error) {
+        console.error('Error parsing user data:', error);
+      }
+    }
+  }, []);
   
   const handleLogout = () => {
     // Clear authentication data
@@ -53,6 +76,27 @@ export function Sidebar({ isSidebarOpen, setIsSidebarOpen }) {
           </Button>
         </div>
         
+        {/* Profile Section */}
+        <Link href="/employee-dashboard/profile" className={cn(
+          "border-b mb-2",
+          isSidebarOpen ? "px-4 pb-4" : "flex justify-center pb-4"
+        )}>
+          <div className={cn(
+            "flex items-center hover:opacity-80 transition-opacity",
+            !isSidebarOpen && "flex-col"
+          )}>
+            <div className="flex items-center justify-center w-10 h-10 rounded-full bg-blue-100 text-blue-600">
+              <User size={20} />
+            </div>
+            {isSidebarOpen && (
+              <div className="ml-3">
+                <p className="text-sm font-medium">{userData.name}</p>
+                <p className="text-xs text-gray-500">{userData.email}</p>
+              </div>
+            )}
+          </div>
+        </Link>
+        
         <div className="flex flex-col flex-1 overflow-y-auto">
             <div className="py-2">
                 {isSidebarOpen && (
@@ -64,6 +108,13 @@ export function Sidebar({ isSidebarOpen, setIsSidebarOpen }) {
                     label="Dashboard"
                     isSidebarOpen={isSidebarOpen}
                     isActive={pathname === '/employee-dashboard'}
+                />
+                <NavItem
+                    href='/employee-dashboard/profile'
+                    icon={<User size={20} />}
+                    label="My Profile"
+                    isSidebarOpen={isSidebarOpen}
+                    isActive={pathname === '/employee-dashboard/profile'}
                 />
             </div>
           {/* Proof of work section */}
