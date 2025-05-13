@@ -182,9 +182,15 @@ export default function EmployeesPage() {
             <CheckCircle2 className="w-3 h-3 mr-1" /> Active
           </Badge>
         );
+      case "activated":
+        return (
+          <Badge variant="outline" className="bg-green-50 text-green-600 border-green-200">
+            <CheckCircle2 className="w-3 h-3 mr-1" /> Activated
+          </Badge>
+        );
       case "invited":
         return (
-          <Badge variant="outline" className="bg-blue-50 text-blue-600 border-blue-200">
+          <Badge variant="outline" className="bg-amber-50 text-amber-600 border-amber-200">
             <Clock className="w-3 h-3 mr-1" /> Invited
           </Badge>
         );

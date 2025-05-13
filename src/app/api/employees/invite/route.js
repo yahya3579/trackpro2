@@ -148,14 +148,15 @@ export async function POST(request) {
         // Insert the employee into database with 'invited' status
         const [result] = await db.query(
           `INSERT INTO employees 
-           (employee_name, email, role, team_name, id) 
-           VALUES (?, ?, ?, ?, ?)`,
+           (employee_name, email, role, team_name, id, status) 
+           VALUES (?, ?, ?, ?, ?, ?)`,
           [
             user.name,
             user.email,
             user.role,
             user.teams[0]?.teamName || '', // Use the first team if available
-            user.employeeId || null
+            user.employeeId || null,
+            'invited'
           ]
         );
         

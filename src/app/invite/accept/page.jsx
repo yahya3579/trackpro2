@@ -111,6 +111,7 @@ export default function AcceptInvitePage() {
         body: JSON.stringify({
           token,
           password,
+          status: 'activated'
         }),
       });
       

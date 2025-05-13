@@ -184,7 +184,7 @@ export async function POST(request) {
     
     // Update employee status to active
     await db.query(
-      'UPDATE employees SET status = "" WHERE id = ?',
+      'UPDATE employees SET status = "activated" WHERE id = ?',
       [employee.id]
     );
     
