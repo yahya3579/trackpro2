@@ -47,7 +47,7 @@ export async function GET(request) {
     
     // These are the columns we want
     const wantedColumns = [
-        'id', 'employee_name', 'email', 'role', 'team_name'
+        'id', 'employee_name', 'email', 'role', 'team_name', 'status', 'joined_date'
     ];
     
     // Include only columns that exist in the table
@@ -120,6 +120,24 @@ export async function GET(request) {
       // Map team_name to department if needed
       if (!employee.department && employee.team_name) {
         employee.department = employee.team_name;
+      }
+      
+      // Map joined_date to hire_date if needed
+      if (!employee.hire_date && employee.joined_date) {
+        employee.hire_date = employee.joined_date;
+      }
+      
+      // Format date fields if they exist
+      if (employee.joined_date && employee.joined_date instanceof Date) {
+        employee.joined_date = employee.joined_date.toISOString().split('T')[0];
+      }
+      if (employee.hire_date && employee.hire_date instanceof Date) {
+        employee.hire_date = employee.hire_date.toISOString().split('T')[0];
+      }
+      
+      // Ensure status is set to a default if not present
+      if (!employee.status) {
+        employee.status = 'invited';
       }
       
       return employee;

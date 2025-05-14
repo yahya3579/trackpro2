@@ -182,9 +182,9 @@ export async function POST(request) {
       throw insertError;
     }
     
-    // Update employee status to active
+    // Update employee status to active and set joined_date
     await db.query(
-      'UPDATE employees SET status = "activated" WHERE id = ?',
+      'UPDATE employees SET status = "active", joined_date = CURDATE() WHERE id = ?',
       [employee.id]
     );
     

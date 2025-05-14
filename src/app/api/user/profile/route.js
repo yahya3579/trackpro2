@@ -29,7 +29,7 @@ async function handler(request) {
       });
     } else {
       // Query the database to get organization information
-      const [users] = await db.query('SELECT id, name, email FROM organizations WHERE id = ?', [userId]);
+      const [users] = await db.query('SELECT id, name, email, logo FROM organizations WHERE id = ?', [userId]);
       
       if (users.length === 0) {
         return NextResponse.json({ message: 'User not found' }, { status: 404 });
@@ -43,6 +43,7 @@ async function handler(request) {
           id: user.id,
           name: user.name,
           email: user.email,
+          photoUrl: user.logo,
           role: 'organization_admin'
         }
       });

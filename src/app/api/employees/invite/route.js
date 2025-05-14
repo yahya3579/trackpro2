@@ -156,7 +156,7 @@ export async function POST(request) {
             user.role,
             user.teams[0]?.teamName || '', // Use the first team if available
             user.employeeId || null,
-            'invited'
+            'invited' // Status explicitly set to 'invited'
           ]
         );
         

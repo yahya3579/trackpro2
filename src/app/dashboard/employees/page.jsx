@@ -15,7 +15,9 @@ import {
   ArrowUpDown,
   ChevronDown,
   Download,
-  Loader2
+  Loader2,
+  Mail,
+  Trash
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -82,6 +84,7 @@ export default function EmployeesPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
   const itemsPerPage = 10;
+  const [isExporting, setIsExporting] = useState(false);
 
   useEffect(() => {
     fetchEmployees();
@@ -125,15 +128,27 @@ export default function EmployeesPage() {
 
     // Filter by status (tab)
     if (activeTab !== "all") {
-      filtered = filtered.filter((employee) => employee.status === activeTab);
+      if (activeTab === "active") {
+        // Include both "active" and "activated" statuses
+        filtered = filtered.filter((employee) => 
+          employee.status === "active" || employee.status === "activated"
+        );
+      } else {
+        filtered = filtered.filter((employee) => employee.status === activeTab);
+      }
     }
+
+    // Debug statuses to console
+    console.log("Available statuses:", [...new Set(employees.map(e => e.status))]);
 
     // Filter by search query (name or email)
     if (searchQuery.trim() !== "") {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(
         (employee) =>
-          `${employee.first_name} ${employee.last_name}`.toLowerCase().includes(query) ||
+          (employee.employee_name && employee.employee_name.toLowerCase().includes(query)) ||
+          (employee.first_name && employee.first_name.toLowerCase().includes(query)) ||
+          (employee.last_name && employee.last_name.toLowerCase().includes(query)) ||
           (employee.email && employee.email.toLowerCase().includes(query))
       );
     }
@@ -185,13 +200,13 @@ export default function EmployeesPage() {
       case "activated":
         return (
           <Badge variant="outline" className="bg-green-50 text-green-600 border-green-200">
-            <CheckCircle2 className="w-3 h-3 mr-1" /> Activated
+            <CheckCircle2 className="w-3 h-3 mr-1" /> Active
           </Badge>
         );
       case "invited":
         return (
           <Badge variant="outline" className="bg-amber-50 text-amber-600 border-amber-200">
-            <Clock className="w-3 h-3 mr-1" /> Invited
+            <Mail className="w-3 h-3 mr-1" /> Invited
           </Badge>
         );
       case "inactive":
@@ -216,8 +231,69 @@ export default function EmployeesPage() {
   };
 
   const handleExportCSV = () => {
-    // Implement export functionality
-    toast.info("Exporting employee data...");
+    // Set loading state
+    setIsExporting(true);
+    
+    try {
+      // Create CSV content
+      const headers = ['ID', 'Name', 'Email', 'Position', 'Department', 'Status', 'Joined Date'];
+      
+      // Use all employees, not just filtered ones, to include all statuses
+      const csvRows = [
+        headers.join(','), // Header row
+        ...employees.map(employee => {
+          // Format employee data for CSV
+          const name = employee.employee_name || 
+            `${employee.first_name || ''} ${employee.last_name || ''}`.trim();
+          const joinDate = employee.hire_date || employee.created_at || '';
+          const formattedDate = joinDate ? new Date(joinDate).toLocaleDateString() : 'N/A';
+          
+          // Quote values to handle commas in text
+          const values = [
+            employee.id || '',
+            `"${name}"`,
+            `"${employee.email || ''}"`,
+            `"${employee.position || employee.role || ''}"`,
+            `"${employee.department || employee.team_name || ''}"`,
+            `"${employee.status || ''}"`,
+            `"${formattedDate}"`
+          ];
+          
+          return values.join(',');
+        })
+      ];
+      
+      // Join all rows with newlines
+      const csvContent = csvRows.join('\n');
+      
+      // Create a Blob with the CSV content
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      
+      // Create URL for the Blob
+      const url = URL.createObjectURL(blob);
+      
+      // Create download link
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', `trackpro_employees_${new Date().toISOString().split('T')[0]}.csv`);
+      link.style.display = 'none';
+      
+      // Add link to the document, click it, and remove it
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      // Revoke the URL to free up memory
+      URL.revokeObjectURL(url);
+      
+      toast.success("CSV file downloaded successfully");
+    } catch (error) {
+      console.error("Error exporting CSV:", error);
+      toast.error("Failed to export employee data");
+    } finally {
+      // Reset loading state
+      setIsExporting(false);
+    }
   };
 
   const handleInviteEmployee = () => {
@@ -252,6 +328,23 @@ export default function EmployeesPage() {
     }
   };
 
+  const handleDeleteEmployee = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this employee?")) return;
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch(`/api/employees/${id}`, {
+        method: "DELETE",
+        headers: { "x-auth-token": token },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to delete employee");
+      setEmployees((prev) => prev.filter((emp) => emp.id !== id));
+      toast.success("Employee deleted successfully");
+    } catch (err) {
+      toast.error(err.message);
+    }
+  };
+
   return (
     <div className="container mx-auto p-6 max-w-7xl">
       <div className="flex justify-between items-center mb-6">
@@ -264,10 +357,21 @@ export default function EmployeesPage() {
             Manage your organization's employees
           </p>
         </div>
-        <Button onClick={handleInviteEmployee}>
-          <UserPlus className="h-4 w-4 mr-2" />
-          Invite Employee
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            className="md:hidden"
+            onClick={handleExportCSV}
+            disabled={isExporting}
+            size="icon"
+          >
+            {isExporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+          </Button>
+          <Button onClick={handleInviteEmployee}>
+            <UserPlus className="h-4 w-4 mr-2" />
+            Invite Employee
+          </Button>
+        </div>
       </div>
 
       <div className="grid gap-6">
@@ -282,7 +386,7 @@ export default function EmployeesPage() {
                   <CheckCircle2 className="h-4 w-4" /> Active
                 </TabsTrigger>
                 <TabsTrigger value="invited" className="gap-1">
-                  <Clock className="h-4 w-4" /> Invited
+                  <Mail className="h-4 w-4" /> Invited
                 </TabsTrigger>
               </TabsList>
               <Button
@@ -290,9 +394,19 @@ export default function EmployeesPage() {
                 size="sm"
                 className="px-2.5 hidden md:flex"
                 onClick={handleExportCSV}
+                disabled={isExporting}
               >
-                <Download className="h-4 w-4 mr-2" />
-                Export CSV
+                {isExporting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Exporting...
+                  </>
+                ) : (
+                  <>
+                    <Download className="h-4 w-4 mr-2" />
+                    Export CSV
+                  </>
+                )}
               </Button>
             </div>
 
@@ -336,6 +450,7 @@ export default function EmployeesPage() {
                   getStatusBadge={getStatusBadge}
                   handleViewEmployee={handleViewEmployee}
                   handleResendInvite={handleResendInvite}
+                  handleDeleteEmployee={handleDeleteEmployee}
                 />
               </TabsContent>
               <TabsContent value="active" className="m-0">
@@ -347,6 +462,7 @@ export default function EmployeesPage() {
                   getStatusBadge={getStatusBadge}
                   handleViewEmployee={handleViewEmployee}
                   handleResendInvite={handleResendInvite}
+                  handleDeleteEmployee={handleDeleteEmployee}
                 />
               </TabsContent>
               <TabsContent value="invited" className="m-0">
@@ -358,6 +474,7 @@ export default function EmployeesPage() {
                   getStatusBadge={getStatusBadge}
                   handleViewEmployee={handleViewEmployee}
                   handleResendInvite={handleResendInvite}
+                  handleDeleteEmployee={handleDeleteEmployee}
                 />
               </TabsContent>
 
@@ -444,6 +561,7 @@ function EmployeesTable({
   getStatusBadge,
   handleViewEmployee,
   handleResendInvite,
+  handleDeleteEmployee,
 }) {
   if (isLoading) {
     return (
@@ -503,23 +621,27 @@ function EmployeesTable({
               <TableCell className="text-right">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" className="h-8 w-8 p-0" aria-label="Open menu">
+                    <Button variant="ghost" className="h-8 w-8 p-0">
+                      <span className="sr-only">Open menu</span>
                       <MoreHorizontal className="h-4 w-4" />
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
                     <DropdownMenuLabel>Actions</DropdownMenuLabel>
                     <DropdownMenuItem onClick={() => handleViewEmployee(employee.id)}>
-                      View Details
+                      <User className="h-4 w-4 mr-2" />
+                      View Profile
                     </DropdownMenuItem>
                     {employee.status === "invited" && (
-                      <>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={() => handleResendInvite(employee.id)}>
-                          Resend Invitation
-                        </DropdownMenuItem>
-                      </>
+                      <DropdownMenuItem onClick={() => handleResendInvite(employee.id)}>
+                        <Mail className="h-4 w-4 mr-2" />
+                        Resend Invite
+                      </DropdownMenuItem>
                     )}
+                    <DropdownMenuItem onClick={() => handleDeleteEmployee(employee.id)}>
+                      <Trash className="h-4 w-4 mr-2 text-destructive" />
+                      <span className="text-destructive">Delete</span>
+                    </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </TableCell>

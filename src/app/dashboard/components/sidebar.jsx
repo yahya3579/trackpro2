@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
@@ -35,7 +35,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { getUserData } from "@/lib/user-storage";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useOrganization } from "@/contexts/OrganizationContext";
 
 const mainItems = [
   {
@@ -82,11 +83,6 @@ const moreItems = [
     icon: History
   },
   {
-    title: "Real-Time Alerts",
-    href: "/dashboard/real-time-alerts",
-    icon: Bell
-  },
-  {
     title: "Leave Management",
     href: "/dashboard/leave-management",
     icon: Calendar
@@ -105,19 +101,9 @@ const moreItems = [
 
 const systemItems = [
   {
-    title: "Reports",
-    href: "/dashboard/reports",
-    icon: BarChart3
-  },
-  {
     title: "Billing",
     href: "/dashboard/billing",
     icon: CreditCard
-  },
-  {
-    title: "Testimonials",
-    href: "/dashboard/testimonials",
-    icon: MessageCircle
   },
   {
     title: "Settings",
@@ -130,64 +116,15 @@ export function Sidebar({ className }) {
   const pathname = usePathname();
   const router = useRouter();
   const [collapsed, setCollapsed] = useState(false);
-  const [userData, setUserData] = useState({
-    name: '',
-    email: '',
-    role: ''
-  });
-  const [isLoading, setIsLoading] = useState(true);
+  const { 
+    name, 
+    role, 
+    photoUrl, 
+    isLoading, 
+    getInitials 
+  } = useOrganization();
   const [showMoreItems, setShowMoreItems] = useState(true);
   const [showSystemItems, setShowSystemItems] = useState(true);
-
-  // Function to fetch user profile data from API
-  const fetchUserProfile = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      if (!token) return;
-
-      const response = await fetch('http://localhost:3000/api/users/profile', {
-        method: 'GET',
-        headers: {
-          'x-auth-token': token,
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setUserData({
-          name: data.user.name,
-          email: data.user.email,
-          role: data.user.role
-        });
-        
-        // Update localStorage with fresh data
-        localStorage.setItem('user', JSON.stringify(data.user));
-      }
-    } catch (error) {
-      console.error('Error fetching user profile:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    // First try to get data from localStorage
-    try {
-      const parsedUser = getUserData();
-      if (parsedUser) {
-        setUserData({
-          name: parsedUser.name || 'User',
-          email: parsedUser.email || '',
-          role: parsedUser.role || 'organization_admin'
-        });
-      }
-    } catch (error) {
-      console.error('Error parsing user data:', error);
-    }
-
-    // Then try to fetch fresh data from API
-    fetchUserProfile();
-  }, []);
 
   const handleLogout = () => {
     // Clear authentication data
@@ -404,17 +341,26 @@ export function Sidebar({ className }) {
           collapsed ? "py-3 px-2" : "py-4 px-3"
         )}>
           {!collapsed && (
-            <div className="mb-2 p-2 rounded-md hover:bg-muted transition-all space-y-1">
+            <div 
+              className="mb-2 p-2 rounded-md hover:bg-muted transition-all space-y-1 cursor-pointer"
+              onClick={() => router.push('/dashboard/settings')}
+            >
               <div className="flex items-center gap-2">
-                <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
-                  <User className="h-4 w-4 text-primary" />
-                </div>
+                <Avatar className="h-8 w-8 border border-primary/10 shadow-sm">
+                  {photoUrl ? (
+                    <AvatarImage src={photoUrl} alt={name} />
+                  ) : (
+                    <AvatarFallback className="bg-gradient-to-br from-primary/20 to-purple-500/20 text-primary text-xs">
+                      {getInitials(name)}
+                    </AvatarFallback>
+                  )}
+                </Avatar>
                 <div className="truncate">
                   <p className="text-sm font-medium truncate">
-                    {isLoading ? 'Loading...' : userData.name}
+                    {isLoading ? 'Loading...' : name}
                   </p>
                   <p className="text-xs text-muted-foreground truncate">
-                    {userData.role === 'organization_admin' ? 'Admin' : 'User'}
+                    {role === 'organization_admin' ? 'Admin' : 'User'}
                   </p>
                 </div>
               </div>
