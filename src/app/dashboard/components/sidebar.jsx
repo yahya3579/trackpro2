@@ -65,11 +65,6 @@ const mainItems = [
     icon: Camera
   },
   {
-    title: "Timelapse Videos",
-    href: "/dashboard/timelapse-videos",
-    icon: Video
-  },
-  {
     title: "Risk Users",
     href: "/dashboard/risk-users",
     icon: AlertTriangle
@@ -225,27 +220,34 @@ export function Sidebar({ className }) {
           )}
           
           {collapsed && (
-            <div className="rounded-md bg-gradient-to-r from-primary to-purple-600 p-1">
+            <div className="rounded-md bg-gradient-to-r from-primary to-purple-600 p-1 mb-4">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M12 2L20 10L16 14L12 18L4 10L8 6L12 2Z" fill="white" />
               </svg>
             </div>
           )}
           
-          <button
-            onClick={() => setCollapsed(!collapsed)}
-            className={cn(
-              "rounded-md p-1.5 hover:bg-muted transition-colors",
-              collapsed && "absolute -right-10 top-3 bg-card shadow border"
-            )}
-          >
-            {collapsed ? (
-              <ChevronRight className="h-4 w-4" />
-            ) : (
+          {!collapsed && (
+            <button
+              onClick={() => setCollapsed(true)}
+              className="rounded-md p-1.5 bg-card hover:bg-muted transition-colors"
+              aria-label="Collapse sidebar"
+            >
               <ChevronLeft className="h-4 w-4" />
-            )}
-          </button>
+            </button>
+          )}
         </div>
+        
+        {/* Expand button when collapsed */}
+        {collapsed && (
+          <button
+            onClick={() => setCollapsed(false)}
+            className="w-full flex items-center justify-center py-3 mt-2 bg-primary/10 hover:bg-primary/20 text-primary rounded-md transition-colors"
+            aria-label="Expand sidebar"
+          >
+            <ChevronRight className="h-5 w-5" />
+          </button>
+        )}
         
         {/* Nav sections */}
         <div className="flex-1 overflow-auto py-2 px-3">

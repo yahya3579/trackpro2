@@ -504,7 +504,7 @@ export default function ActivityMonitoringPage() {
                     <div className="flex flex-wrap gap-2 mb-2">
                       {appSummaryData.map((entry, index) => (
                         <Badge
-                          key={entry.name}
+                          key={`${entry.name}-${index}`}
                           style={{ background: CATEGORY_COLORS[entry.category] || CATEGORY_COLORS.other, color: '#fff' }}
                           className="rounded px-2 py-1 text-xs font-medium shadow"
                         >
