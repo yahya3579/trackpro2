@@ -104,7 +104,7 @@ export default function LoginPage() {
         const roleLowercase = data.user.role?.toLowerCase() || '';
         
         if (roleLowercase.replace(/\s/g, '_') === 'team_member' || roleLowercase === 'team member') {
-          router.push('/employee-dashboard');
+          router.push('/employee-dashboard/my-work');
         } else if (roleLowercase === 'admin') {
           router.push('/super-admin');
         } else {

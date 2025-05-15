@@ -1,282 +1,299 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { format, differenceInDays } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { PlusCircle, Calendar as CalendarIcon, CheckCircle, Clock, XCircle } from "lucide-react";
+import { PlusCircle, Calendar as CalendarIcon, Loader2, AlertCircle } from "lucide-react";
+import { toast } from "sonner";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 export default function ApplyLeavePage() {
-  const [date, setDate] = useState(new Date());
-  const [dateRange, setDateRange] = useState({
-    from: new Date(),
-    to: new Date(new Date().setDate(new Date().getDate() + 3))
+  // Placeholder employee_id (replace with real value from context/auth in production)
+  const employeeId = 1;
+
+  // UI states
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState(null);
+  const [showForm, setShowForm] = useState(true);
+
+  // Leave types state
+  const [leaveTypes, setLeaveTypes] = useState([]);
+  const [leaveTypesLoading, setLeaveTypesLoading] = useState(true);
+  const [leaveTypesError, setLeaveTypesError] = useState(null);
+
+  // Form state
+  const [leaveForm, setLeaveForm] = useState({
+    leave_type_id: "", // will be set after fetching leave types
+    start_date: new Date(),
+    end_date: new Date(),
+    reason: ""
   });
-  
-  // Mock leave history
-  const leaveHistory = [
-    { 
-      id: 1, 
-      type: 'Annual Leave', 
-      from: '2023-05-10', 
-      to: '2023-05-15', 
-      days: 4, 
-      reason: 'Vacation', 
-      status: 'approved' 
-    },
-    { 
-      id: 2, 
-      type: 'Sick Leave', 
-      from: '2023-04-03', 
-      to: '2023-04-04', 
-      days: 2, 
-      reason: 'Not feeling well', 
-      status: 'approved' 
-    },
-    { 
-      id: 3, 
-      type: 'Annual Leave', 
-      from: '2023-03-20', 
-      to: '2023-03-22', 
-      days: 3, 
-      reason: 'Family event', 
-      status: 'approved' 
-    },
-    { 
-      id: 4, 
-      type: 'Annual Leave', 
-      from: '2023-07-10', 
-      to: '2023-07-12', 
-      days: 3, 
-      reason: 'Personal trip', 
-      status: 'pending' 
+
+  // Fetch leave types on mount
+  useEffect(() => {
+    async function fetchLeaveTypes() {
+      setLeaveTypesLoading(true);
+      setLeaveTypesError(null);
+      try {
+        const token = localStorage.getItem("token");
+        const res = await fetch("/api/leave-management", {
+          headers: { "x-auth-token": token }
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) throw new Error(data.error || "Failed to fetch leave types");
+        setLeaveTypes(data.leaveTypes || []);
+        // Set default leave type to first one
+        if (data.leaveTypes && data.leaveTypes.length > 0) {
+          setLeaveForm(prev => ({ ...prev, leave_type_id: data.leaveTypes[0].id }));
+        }
+      } catch (err) {
+        setLeaveTypesError(err.message || "Failed to fetch leave types");
+      } finally {
+        setLeaveTypesLoading(false);
+      }
     }
-  ];
-  
-  // Filter leave history
-  const pendingLeaves = leaveHistory.filter(leave => leave.status === 'pending');
-  const approvedLeaves = leaveHistory.filter(leave => leave.status === 'approved');
-  
-  function getStatusBadge(status) {
-    switch (status) {
-      case 'approved':
-        return <Badge variant="outline" className="bg-green-50 text-green-700 hover:bg-green-50">Approved</Badge>;
-      case 'pending':
-        return <Badge variant="outline" className="bg-yellow-50 text-yellow-700 hover:bg-yellow-50">Pending</Badge>;
-      case 'rejected':
-        return <Badge variant="outline" className="bg-red-50 text-red-700 hover:bg-red-50">Rejected</Badge>;
-      default:
-        return <Badge variant="outline">Unknown</Badge>;
+    fetchLeaveTypes();
+  }, []);
+
+  // Calculate total days for leave request
+  const calculateDays = () => {
+    if (!leaveForm.start_date || !leaveForm.end_date) return 0;
+    return differenceInDays(leaveForm.end_date, leaveForm.start_date) + 1;
+  };
+
+  // Handle leave form submission
+  const handleSubmitLeave = async (e) => {
+    e.preventDefault();
+
+    if (!employeeId) {
+      toast.error("Employee information not found");
+      return;
     }
+
+    if (!leaveForm.leave_type_id || !leaveForm.start_date || !leaveForm.end_date) {
+      toast.error("Please fill in all required fields");
+      return;
+    }
+
+    setSubmitting(true);
+
+    try {
+      const token = localStorage.getItem("token");
+
+      // Calculate total days
+      const totalDays = calculateDays();
+
+      // Prepare request data
+      const requestData = {
+        employee_id: employeeId,
+        leave_type_id: leaveForm.leave_type_id, // now numeric
+        start_date: format(leaveForm.start_date, "yyyy-MM-dd"),
+        end_date: format(leaveForm.end_date, "yyyy-MM-dd"),
+        total_days: totalDays,
+        reason: leaveForm.reason || ""
+      };
+
+      // Send request to API
+      const response = await fetch("/api/leave-management", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-auth-token": token
+        },
+        body: JSON.stringify(requestData)
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || "Failed to submit leave request");
+      }
+
+      toast.success("Leave request submitted successfully");
+
+      // Reset form but keep it visible
+      setLeaveForm({
+        leave_type_id: leaveTypes.length > 0 ? leaveTypes[0].id : "",
+        start_date: new Date(),
+        end_date: new Date(),
+        reason: ""
+      });
+    } catch (err) {
+      console.error("Error submitting leave request:", err);
+      toast.error(err.message || "Failed to submit leave request");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // Loading/error state for leave types
+  if (leaveTypesLoading) {
+    return (
+      <div className="flex items-center justify-center h-40">
+        <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Loading leave types...
+      </div>
+    );
   }
-  
+  if (leaveTypesError) {
+    return (
+      <Alert variant="destructive">
+        <AlertCircle className="h-4 w-4" />
+        <AlertTitle>Error</AlertTitle>
+        <AlertDescription>{leaveTypesError}</AlertDescription>
+      </Alert>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">Apply Leave</h1>
-        <Button>
-          Apply New Leave
-          <PlusCircle className="ml-2 h-4 w-4" />
-        </Button>
       </div>
-      
-      <div className="grid gap-6 md:grid-cols-3">
-        <div className="md:col-span-2 space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Request Leave</CardTitle>
-              <CardDescription>Fill in the details to apply for leave</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="leaveType">Leave Type</Label>
-                    <Select defaultValue="annual">
-                      <SelectTrigger id="leaveType">
-                        <SelectValue placeholder="Select leave type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="annual">Annual Leave</SelectItem>
-                        <SelectItem value="sick">Sick Leave</SelectItem>
-                        <SelectItem value="unpaid">Unpaid Leave</SelectItem>
-                        <SelectItem value="other">Other</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label>Duration</Label>
-                    <div className="flex items-center gap-2">
-                      <Button variant="outline" size="sm" className="flex-1">Half Day</Button>
-                      <Button variant="outline" size="sm" className="flex-1">Full Day</Button>
-                      <Button variant="outline" size="sm" className="flex-1">Multiple Days</Button>
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="fromDate">From Date</Label>
-                    <Input type="date" id="fromDate" />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label htmlFor="toDate">To Date</Label>
-                    <Input type="date" id="toDate" />
-                  </div>
-                </div>
-                
+
+      {/* Leave Application Form */}
+      {showForm && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Request Leave</CardTitle>
+            <CardDescription>Fill in the details to apply for leave</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmitLeave} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="reason">Reason for Leave</Label>
-                  <textarea id="reason" placeholder="Please provide a reason for your leave request" className="min-h-[100px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50" />
-                </div>
-                
-                <div className="flex justify-end gap-2">
-                  <Button variant="outline">Cancel</Button>
-                  <Button>Submit Request</Button>
-                </div>
-              </form>
-            </CardContent>
-          </Card>
-          
-          <Card>
-            <CardHeader>
-              <CardTitle>Leave History</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Tabs defaultValue="pending" className="w-full">
-                <TabsList className="grid w-full grid-cols-2 mb-6">
-                  <TabsTrigger value="pending" className="flex gap-2">
-                    <Clock className="h-4 w-4" />
-                    Pending
-                    <Badge variant="secondary">{pendingLeaves.length}</Badge>
-                  </TabsTrigger>
-                  <TabsTrigger value="approved" className="flex gap-2">
-                    <CheckCircle className="h-4 w-4" />
-                    Approved
-                    <Badge variant="secondary">{approvedLeaves.length}</Badge>
-                  </TabsTrigger>
-                </TabsList>
-                
-                <TabsContent value="pending" className="space-y-4">
-                  {pendingLeaves.length === 0 ? (
-                    <p className="text-center text-gray-500 py-4">No pending leave requests</p>
-                  ) : (
-                    pendingLeaves.map((leave) => (
-                      <LeaveCard key={leave.id} leave={leave} />
-                    ))
-                  )}
-                </TabsContent>
-                
-                <TabsContent value="approved" className="space-y-4">
-                  {approvedLeaves.map((leave) => (
-                    <LeaveCard key={leave.id} leave={leave} />
-                  ))}
-                </TabsContent>
-              </Tabs>
-            </CardContent>
-          </Card>
-        </div>
-        
-        <div>
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <CalendarIcon className="mr-2 h-5 w-5" />
-                Leave Calendar
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Calendar
-                mode="range"
-                selected={dateRange}
-                onSelect={setDateRange}
-                className="rounded-md border"
-              />
-              
-              <div className="mt-4">
-                <h3 className="font-medium mb-2">Leave Balance</h3>
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center text-sm">
-                    <span>Annual Leave:</span>
-                    <Badge variant="outline" className="bg-blue-50 text-blue-700">
-                      15 days left
-                    </Badge>
-                  </div>
-                  <div className="flex justify-between items-center text-sm">
-                    <span>Sick Leave:</span>
-                    <Badge variant="outline" className="bg-blue-50 text-blue-700">
-                      10 days left
-                    </Badge>
-                  </div>
-                  <div className="flex justify-between items-center text-sm">
-                    <span>Used this year:</span>
-                    <Badge variant="outline" className="bg-gray-50 text-gray-700">
-                      7 days
-                    </Badge>
-                  </div>
+                  <Label htmlFor="leaveType">Leave Type</Label>
+                  <Select 
+                    value={String(leaveForm.leave_type_id)}
+                    onValueChange={(value) => setLeaveForm(prev => ({ ...prev, leave_type_id: Number(value) }))}
+                  >
+                    <SelectTrigger id="leaveType" className="w-full">
+                      <SelectValue placeholder="Select leave type">
+                        {leaveTypes.find(type => type.id === leaveForm.leave_type_id)?.name || "Select leave type"}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {leaveTypes.map((type) => (
+                        <SelectItem key={type.id} value={String(type.id)}>
+                          {type.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    </div>
-  );
-}
 
-function LeaveCard({ leave }) {
-  function getStatusBadge(status) {
-    switch (status) {
-      case 'approved':
-        return <Badge variant="outline" className="bg-green-50 text-green-700 hover:bg-green-50">Approved</Badge>;
-      case 'pending':
-        return <Badge variant="outline" className="bg-yellow-50 text-yellow-700 hover:bg-yellow-50">Pending</Badge>;
-      case 'rejected':
-        return <Badge variant="outline" className="bg-red-50 text-red-700 hover:bg-red-50">Rejected</Badge>;
-      default:
-        return <Badge variant="outline">Unknown</Badge>;
-    }
-  }
-  
-  return (
-    <Card className="hover:shadow-md transition-shadow">
-      <CardContent className="p-4">
-        <div className="flex justify-between items-start">
-          <div>
-            <h3 className="font-medium">{leave.type}</h3>
-            <p className="text-sm text-gray-500">
-              {new Date(leave.from).toLocaleDateString()} - {new Date(leave.to).toLocaleDateString()}
-            </p>
-            <p className="text-sm text-gray-500 mt-1">
-              {leave.days} {leave.days > 1 ? 'days' : 'day'}
-            </p>
-          </div>
-          {getStatusBadge(leave.status)}
-        </div>
-        
-        <div className="mt-2">
-          <p className="text-sm text-gray-700">
-            <span className="font-medium">Reason:</span> {leave.reason}
-          </p>
-        </div>
-        
-        {leave.status === 'pending' && (
-          <div className="mt-4 flex justify-end gap-2">
-            <Button variant="outline" size="sm" className="text-red-500 border-red-200 hover:bg-red-50">
-              <XCircle className="mr-1 h-4 w-4" />
-              Cancel
-            </Button>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="fromDate">From Date</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        id="fromDate"
+                        variant="outline"
+                        className="w-full justify-start text-left font-normal"
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {leaveForm.start_date ? (
+                          format(leaveForm.start_date, "PPP")
+                        ) : (
+                          <span>Select date</span>
+                        )}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0">
+                      <Calendar
+                        mode="single"
+                        selected={leaveForm.start_date}
+                        onSelect={(date) => {
+                          if (!date) return;
+                          setLeaveForm(prev => ({
+                            ...prev,
+                            start_date: date,
+                            end_date: date > prev.end_date ? date : prev.end_date
+                          }));
+                        }}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="toDate">To Date</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        id="toDate"
+                        variant="outline"
+                        className="w-full justify-start text-left font-normal"
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {leaveForm.end_date ? (
+                          format(leaveForm.end_date, "PPP")
+                        ) : (
+                          <span>Select date</span>
+                        )}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0">
+                      <Calendar
+                        mode="single"
+                        selected={leaveForm.end_date}
+                        onSelect={(date) => {
+                          if (!date) return;
+                          setLeaveForm(prev => ({ ...prev, end_date: date }));
+                        }}
+                        disabled={(date) => date < leaveForm.start_date}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              </div>
+
+              {leaveForm.start_date && leaveForm.end_date && (
+                <div className="text-sm font-medium">
+                  Leave Duration: {calculateDays()} day(s)
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <Label htmlFor="reason">Reason for Leave</Label>
+                <Textarea
+                  id="reason"
+                  placeholder="Please provide a reason for your leave request"
+                  value={leaveForm.reason}
+                  onChange={(e) => setLeaveForm(prev => ({ ...prev, reason: e.target.value }))}
+                  rows={4}
+                />
+              </div>
+
+              <div className="flex justify-end gap-2">
+                <Button type="button" variant="outline" onClick={() => setShowForm(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={submitting}>
+                  {submitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Submitting...
+                    </>
+                  ) : (
+                    "Submit Request"
+                  )}
+                </Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+      )}
+    </div>
   );
 } 

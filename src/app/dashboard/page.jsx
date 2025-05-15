@@ -48,6 +48,7 @@ export default function DashboardPage() {
   const [productivityData, setProductivityData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [productivityCategories, setProductivityCategories] = useState([]);
+  const [hoveredPieIndex, setHoveredPieIndex] = useState(null);
 
   // Helper function to safely get token
   const getAuthToken = () => {
@@ -279,6 +280,7 @@ export default function DashboardPage() {
   const productiveHours = productivityData?.productiveHours || 0;
   const totalTrackedHours = productivityData?.totalTrackedHours || 0;
   const nonProductiveHours = totalTrackedHours - productiveHours;
+  const nonProductivePercentage = totalTrackedHours > 0 ? Math.round((nonProductiveHours / totalTrackedHours) * 100) : 0;
 
   return (
     <div className="space-y-10 pb-10">
@@ -527,16 +529,33 @@ export default function DashboardPage() {
                               dataKey="value"
                               strokeWidth={2}
                               stroke="#ffffff"
+                              onMouseLeave={() => setHoveredPieIndex(null)}
                             >
-                              <Cell key="cell-productive" fill="#10b981" />
-                              <Cell key="cell-non-productive" fill="#f87171" />
+                              <Cell key="cell-productive" fill="#10b981" onMouseEnter={() => setHoveredPieIndex(0)} />
+                              <Cell key="cell-non-productive" fill="#f87171" onMouseEnter={() => setHoveredPieIndex(1)} />
                             </Pie>
                           </PieChart>
                         </ResponsiveContainer>
                         
-                        <div className="absolute inset-0 flex items-center justify-center flex-col">
-                          <span className="text-4xl font-bold text-primary">{productivityPercentage || 0}%</span>
-                          <span className="text-xs text-muted-foreground mt-1">Productivity</span>
+                        <div className="absolute inset-0 flex items-center justify-center flex-col pointer-events-none select-none">
+                          {hoveredPieIndex === 0 && (
+                            <>
+                              <span className="text-4xl font-bold text-primary">{productivityPercentage}%</span>
+                              <span className="text-xs text-muted-foreground mt-1">Productivity</span>
+                            </>
+                          )}
+                          {hoveredPieIndex === 1 && (
+                            <>
+                              <span className="text-4xl font-bold text-destructive">{nonProductivePercentage}%</span>
+                              <span className="text-xs text-muted-foreground mt-1">Non-Productive</span>
+                            </>
+                          )}
+                          {hoveredPieIndex === null && (
+                            <>
+                              <span className="text-lg font-semibold text-muted-foreground">Hover chart</span>
+                              <span className="text-xs text-muted-foreground mt-1">for details</span>
+                            </>
+                          )}
                         </div>
                       </div>
 

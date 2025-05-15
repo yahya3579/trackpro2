@@ -103,13 +103,6 @@ export function Sidebar({ isSidebarOpen, setIsSidebarOpen }) {
                     <p className="px-4 py-2 text-sm text-gray-500">Employee Dashboard</p>
                 )}
                 <NavItem
-                    href='/employee-dashboard'
-                    icon={<Home size={20} />}
-                    label="Dashboard"
-                    isSidebarOpen={isSidebarOpen}
-                    isActive={pathname === '/employee-dashboard'}
-                />
-                <NavItem
                     href='/employee-dashboard/profile'
                     icon={<User size={20} />}
                     label="My Profile"
