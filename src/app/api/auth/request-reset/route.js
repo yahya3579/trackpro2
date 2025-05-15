@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 import db from '../../../../lib/db';
-import { sendEmail } from '../../../../lib/utils';
 
 export async function POST(request) {
   try {
@@ -21,8 +20,8 @@ export async function POST(request) {
     if (orgs.length > 0) {
       // Store the token in the database
       await db.query(
-        'INSERT INTO password_reset_tokens (user_id, user_type, token, expires_at) VALUES (?, ?, ?, ?)',
-        [orgs[0].id, 'organization', resetToken, resetTokenExpiry]
+        'INSERT INTO password_reset_tokens (user_id, email, token, expires_at, used, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+        [orgs[0].id, 'organization', resetToken, resetTokenExpiry, 0, new Date()]
       );
     } else {
       // Check if the user exists in super_admins table
@@ -43,7 +42,7 @@ export async function POST(request) {
     }
     
     // Send password reset email
-    const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/reset-password?token=${resetToken}`;
+    const resetUrl = `${'http://localhost:3000'}/reset-password?token=${resetToken}`;
     
     await sendEmail({
       to: email,

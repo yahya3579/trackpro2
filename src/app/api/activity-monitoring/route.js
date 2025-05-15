@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import db from '@/lib/db';
+import jwt from 'jsonwebtoken';
 
 // GET - Fetch activity monitoring records
 export async function GET(request) {
@@ -10,6 +11,17 @@ export async function GET(request) {
       return NextResponse.json({ 
         success: false, 
         error: 'Authorization token is required' 
+      }, { status: 401 });
+    }
+    
+    // Decode JWT token to get user information
+    let decodedToken;
+    try {
+      decodedToken = jwt.verify(token, 'trackpro-secret-key');
+    } catch (err) {
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Invalid authentication token' 
       }, { status: 401 });
     }
     
@@ -53,10 +65,34 @@ export async function GET(request) {
     
     // Get query parameters
     const { searchParams } = new URL(request.url);
-    const employeeId = searchParams.get('employee_id');
+    const requestedEmployeeId = searchParams.get('employee_id');
     const startDate = searchParams.get('start_date');
     const endDate = searchParams.get('end_date');
     const category = searchParams.get('category'); // app, website, etc.
+    const isFromEmployeeDashboard = searchParams.get('employee_view') === 'true' || 
+                                   request.headers.get('referer')?.includes('/employee-dashboard');
+    
+    // Determine if we should filter by the authenticated user's ID
+    let employeeId = requestedEmployeeId;
+    
+    // For employee dashboard, always filter by the authenticated user's ID
+    if (isFromEmployeeDashboard || !requestedEmployeeId) {
+      // Get employee ID for the authenticated user
+      if (decodedToken.id && decodedToken.role !== 'organization_admin') {
+        // Use the ID directly from token for regular employees
+        employeeId = decodedToken.id;
+      } else if (decodedToken.email) {
+        // For admins, try to find their employee record by email
+        const [employee] = await db.query(
+          'SELECT id FROM employees WHERE email = ?',
+          [decodedToken.email]
+        );
+        
+        if (employee.length > 0) {
+          employeeId = employee[0].id;
+        }
+      }
+    }
     
     // Check if data exists in app_usage table
     try {

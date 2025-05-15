@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
+import db from '@/lib/db';
 
 // Secret key for JWT
 const JWT_SECRET = 'trackpro-secret-key';
@@ -53,5 +54,54 @@ export function getUser(request) {
     return jwt.verify(token, JWT_SECRET);
   } catch (err) {
     return null;
+  }
+}
+
+/**
+ * Get employee ID from decoded token by matching email or name
+ * @param {Object} decodedToken - The decoded JWT token
+ * @returns {Promise<{employeeId: number|null, error: string|null}>} - Employee ID or error
+ */
+export async function getEmployeeIdFromToken(decodedToken) {
+  if (!decodedToken) {
+    return { employeeId: null, error: 'Invalid token' };
+  }
+  
+  try {
+    // Try to get employee by email first (more reliable)
+    if (decodedToken.email) {
+      const [employee] = await db.query(
+        'SELECT id FROM employees WHERE email = ?',
+        [decodedToken.email]
+      );
+      
+      if (employee.length > 0) {
+        return { employeeId: employee[0].id, error: null };
+      }
+    }
+    
+    // If no match by email and token has name, try by name
+    if (decodedToken.name) {
+      const [employee] = await db.query(
+        'SELECT id FROM employees WHERE employee_name = ?',
+        [decodedToken.name]
+      );
+      
+      if (employee.length > 0) {
+        return { employeeId: employee[0].id, error: null };
+      }
+    }
+    
+    // If all lookups failed
+    return { 
+      employeeId: null, 
+      error: 'No matching employee record found for this user'
+    };
+  } catch (err) {
+    console.error('Error finding employee ID:', err);
+    return { 
+      employeeId: null, 
+      error: 'Database error when finding employee'
+    };
   }
 } 

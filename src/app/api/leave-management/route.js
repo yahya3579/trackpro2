@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import db from '@/lib/db';
+import jwt from 'jsonwebtoken';
+import { getEmployeeIdFromToken } from '@/lib/auth';
 
 // GET - Fetch leave requests with optional filters
 export async function GET(request) {
@@ -114,14 +116,38 @@ export async function POST(request) {
       }, { status: 401 });
     }
     
+    // Decode token to get user information
+    let decodedToken;
+    try {
+      decodedToken = jwt.verify(token, 'trackpro-secret-key');
+    } catch (err) {
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Invalid authentication token' 
+      }, { status: 401 });
+    }
+    
     // Get data from request body
     const data = await request.json();
     
-    // Validate required fields
-    if (!data.employee_id || !data.leave_type_id || !data.start_date || !data.end_date || !data.total_days) {
+    // Get employee ID from token
+    const { employeeId, error } = await getEmployeeIdFromToken(decodedToken);
+    
+    if (!employeeId) {
       return NextResponse.json({ 
         success: false, 
-        error: 'Employee ID, leave type, start date, end date, and total days are required fields' 
+        error: error || 'Could not identify employee from token'
+      }, { status: 400 });
+    }
+    
+    // Use the validated employee ID
+    data.employee_id = employeeId;
+    
+    // Validate required fields
+    if (!data.leave_type_id || !data.start_date || !data.end_date || !data.total_days) {
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Leave type, start date, end date, and total days are required fields' 
       }, { status: 400 });
     }
     

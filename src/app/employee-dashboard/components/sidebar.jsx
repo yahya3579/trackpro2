@@ -122,13 +122,6 @@ export function Sidebar({ isSidebarOpen, setIsSidebarOpen }) {
               isSidebarOpen={isSidebarOpen}
               isActive={pathname === "/employee-dashboard/my-work"}
             />
-            <NavItem
-              href="/employee-dashboard/timesheet"
-              icon={<Clock size={20} />}
-              label="Timesheet"
-              isSidebarOpen={isSidebarOpen}
-              isActive={pathname === "/employee-dashboard/timesheet"}
-            />
           </div>
           
           {/* Leave Management section */}
