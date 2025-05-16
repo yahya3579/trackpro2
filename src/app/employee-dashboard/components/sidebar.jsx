@@ -137,13 +137,6 @@ export function Sidebar({ isSidebarOpen, setIsSidebarOpen }) {
               isActive={pathname === "/employee-dashboard/apply-leave"}
             />
             <NavItem
-              href="/employee-dashboard/my-leaves"
-              icon={<Clock size={20} />}
-              label="My Leaves"
-              isSidebarOpen={isSidebarOpen}
-              isActive={pathname === "/employee-dashboard/my-leaves"}
-            />
-            <NavItem
               href="/employee-dashboard/view-holiday"
               icon={<CalendarIcon size={20} />}
               label="View Holiday"

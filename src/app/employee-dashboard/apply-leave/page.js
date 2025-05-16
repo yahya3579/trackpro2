@@ -116,7 +116,7 @@ export default function ApplyLeavePage() {
         throw new Error(data.error || "Failed to submit leave request");
       }
 
-      toast.success("Leave request submitted successfully");
+      toast.success("leave application sent");
 
       // Reset form but keep it visible
       setLeaveForm({

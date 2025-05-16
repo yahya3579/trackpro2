@@ -469,7 +469,7 @@ export default function SuperAdminDashboardPage() {
           
           <CardFooter className="border-t px-6 py-3">
             <Button variant="ghost" size="sm" className="gap-1 h-8" onClick={() => window.location.href = "/super-admin-dashboard/leave-requests"}>
-              <span>View all pending requests</span>
+              <span>View all leave requests</span>
               <ChevronRight className="h-4 w-4" />
             </Button>
           </CardFooter>
