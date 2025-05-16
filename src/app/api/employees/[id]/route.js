@@ -18,9 +18,9 @@ export async function DELETE(request, { params }) {
     
     // Update all tables that might reference this employee
     await db.query('UPDATE leave_requests SET approved_by = NULL WHERE approved_by = ?', [id]);
-    await db.query('UPDATE leave_requests SET employee_id = NULL WHERE employee_id = ?', [id]);
+    // await db.query('UPDATE leave_requests SET employee_id = NULL WHERE employee_id = ?', [id]);
     await db.query('UPDATE screenshots SET employee_id = NULL WHERE employee_id = ?', [id]);
-    await db.query('UPDATE time_entries SET employee_id = NULL WHERE employee_id = ?', [id]);
+    // await db.query('UPDATE time_entries SET employee_id = NULL WHERE employee_id = ?', [id]);
     
     // Now it's safe to delete the employee
     await db.query('DELETE FROM employees WHERE id = ?', [id]);

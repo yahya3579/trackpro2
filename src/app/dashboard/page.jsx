@@ -276,9 +276,11 @@ export default function DashboardPage() {
   }, []);
 
   // Calculate productivity percentage
-  const productivityPercentage = productivityData?.averageProductivity || 0;
   const productiveHours = productivityData?.productiveHours || 0;
   const totalTrackedHours = productivityData?.totalTrackedHours || 0;
+  const productivityPercentage = totalTrackedHours > 0 
+    ? Math.round((productiveHours / totalTrackedHours) * 100) 
+    : 0;
   const nonProductiveHours = totalTrackedHours - productiveHours;
   const nonProductivePercentage = totalTrackedHours > 0 ? Math.round((nonProductiveHours / totalTrackedHours) * 100) : 0;
 
@@ -490,14 +492,14 @@ export default function DashboardPage() {
           
           <TabsContent value="overview" className="mt-10 space-y-10">
             {/* Productivity Overview Card with Pie Chart */}
-            <CardSpotlight className="backdrop-blur-sm bg-card/80 border border-border/40 hover:shadow-md transition-all duration-300">
+            <CardSpotlight className="backdrop-blur-md bg-gradient-to-br from-white/80 to-primary/5 border border-border/40 shadow-xl hover:shadow-2xl transition-all duration-300 rounded-2xl">
               <CardHeader className="pb-6 pt-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <CardTitle className="text-xl">Productivity Overview</CardTitle>
-                    <CardDescription className="mt-1">Breakdown of team productivity metrics</CardDescription>
+                    <CardTitle className="text-xl font-bold text-primary">Productivity Overview</CardTitle>
+                    <CardDescription className="mt-1 text-base text-muted-foreground">Breakdown of team productivity metrics</CardDescription>
                   </div>
-                  <Button variant="outline" size="sm" className="h-8 rounded-full border-muted-foreground/20 hover:bg-muted/50">
+                  <Button variant="outline" size="sm" className="h-8 rounded-full border-muted-foreground/20 hover:bg-primary/10">
                     <Calendar className="h-3.5 w-3.5 mr-1.5 text-primary" />
                     Last 7 Days
                   </Button>
@@ -510,10 +512,10 @@ export default function DashboardPage() {
                     <p className="text-sm text-muted-foreground">Loading productivity data...</p>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
                     {/* Pie Chart */}
                     <div className="flex flex-col justify-center items-center">
-                      <div className="relative h-52 w-52">
+                      <div className="relative h-56 w-56 bg-gradient-to-br from-primary/5 to-white/80 rounded-full shadow-lg flex items-center justify-center">
                         <ResponsiveContainer width="100%" height="100%">
                           <PieChart>
                             <Pie
@@ -523,8 +525,8 @@ export default function DashboardPage() {
                               ]}
                               cx="50%"
                               cy="50%"
-                              innerRadius={45}
-                              outerRadius={75}
+                              innerRadius={60}
+                              outerRadius={90}
                               paddingAngle={3}
                               dataKey="value"
                               strokeWidth={2}
@@ -536,18 +538,17 @@ export default function DashboardPage() {
                             </Pie>
                           </PieChart>
                         </ResponsiveContainer>
-                        
                         <div className="absolute inset-0 flex items-center justify-center flex-col pointer-events-none select-none">
                           {hoveredPieIndex === 0 && (
                             <>
-                              <span className="text-4xl font-bold text-primary">{productivityPercentage}%</span>
-                              <span className="text-xs text-muted-foreground mt-1">Productivity</span>
+                              <span className="text-5xl font-extrabold text-primary drop-shadow-lg">{productivityPercentage}%</span>
+                              <span className="text-xs text-muted-foreground mt-1 tracking-wide">Productivity</span>
                             </>
                           )}
                           {hoveredPieIndex === 1 && (
                             <>
-                              <span className="text-4xl font-bold text-destructive">{nonProductivePercentage}%</span>
-                              <span className="text-xs text-muted-foreground mt-1">Non-Productive</span>
+                              <span className="text-5xl font-extrabold text-destructive drop-shadow-lg">{nonProductivePercentage}%</span>
+                              <span className="text-xs text-muted-foreground mt-1 tracking-wide">Non-Productive</span>
                             </>
                           )}
                           {hoveredPieIndex === null && (
@@ -558,95 +559,34 @@ export default function DashboardPage() {
                           )}
                         </div>
                       </div>
-
-                      <div className="mt-3 mb-2 flex justify-center space-x-6">
-                        <div className="flex items-center">
-                          <div className="h-3 w-3 rounded-full bg-[#10b981] mr-2"></div>
-                          <span className="text-sm">Productive</span>
+                      {/* Modern Legend */}
+                      <div className="mt-6 flex justify-center gap-8">
+                        <div className="flex items-center gap-2">
+                          <span className="inline-block w-4 h-4 rounded-full bg-[#10b981] border-2 border-white shadow" />
+                          <span className="text-sm font-medium text-primary">Productive</span>
                         </div>
-                        <div className="flex items-center">
-                          <div className="h-3 w-3 rounded-full bg-[#f87171] mr-2"></div>
-                          <span className="text-sm">Non-Productive</span>
+                        <div className="flex items-center gap-2">
+                          <span className="inline-block w-4 h-4 rounded-full bg-[#f87171] border-2 border-white shadow" />
+                          <span className="text-sm font-medium text-destructive">Non-Productive</span>
                         </div>
                       </div>
-                      
-                      <div className="mt-5 flex flex-col gap-3 w-full max-w-xs">
-                        <div className="flex items-center justify-between text-sm font-medium">
+                      {/* Hours Summary */}
+                      <div className="mt-7 flex flex-col gap-3 w-full max-w-xs bg-muted/40 rounded-xl p-4 shadow-inner">
+                        <div className="flex items-center justify-between text-sm font-semibold">
                           <span>Productive Hours</span>
-                          <span>{productiveHours}h</span>
+                          <span className="text-primary">{productiveHours}h</span>
                         </div>
-                        <Progress value={(productiveHours / (totalTrackedHours || 1)) * 100} className="h-2 bg-muted" />
-                        
-                        <div className="flex items-center justify-between text-sm font-medium mt-2">
+                        <Progress value={(productiveHours / (totalTrackedHours || 1)) * 100} className="h-2 bg-primary/20" />
+                        <div className="flex items-center justify-between text-sm font-semibold mt-2">
                           <span>Non-Productive Hours</span>
-                          <span>{nonProductiveHours}h</span>
+                          <span className="text-destructive">{nonProductiveHours}h</span>
                         </div>
-                        <Progress value={(nonProductiveHours / (totalTrackedHours || 1)) * 100} className="h-2 bg-muted" />
+                        <Progress value={(nonProductiveHours / (totalTrackedHours || 1)) * 100} className="h-2 bg-destructive/20" />
                       </div>
-                      
-                      {productivityData?.employeeProductivity && productivityData.employeeProductivity.length > 0 && (
-                        <div className="mt-7 bg-muted/20 rounded-lg p-4 w-full max-w-xs">
-                          <p className="text-xs text-muted-foreground mb-3 text-center">
-                            Based on data from {productivityData.employeeProductivity.length} employees
-                          </p>
-                          <div className="flex flex-wrap gap-1.5 justify-center mb-4">
-                            {productivityData.employeeProductivity.slice(0, 5).map((emp, index) => (
-                              <TooltipProvider key={index}>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <div 
-                                      className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center text-xs font-medium border border-primary/20 hover:bg-primary/20 transition-colors"
-                                    >
-                                      {emp.employee_name ? emp.employee_name.substring(0, 2).toUpperCase() : `E${index}`}
-                                    </div>
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    <p className="font-medium">{emp.employee_name || `Employee ${index + 1}`}</p>
-                                    <p className="text-xs">Productivity: {emp.productivity_rate || 0}%</p>
-                                  </TooltipContent>
-                                </Tooltip>
-                              </TooltipProvider>
-                            ))}
-                            {productivityData.employeeProductivity.length > 5 && (
-                              <div className="w-9 h-9 rounded-full bg-muted flex items-center justify-center text-xs font-medium border border-muted-foreground/20">
-                                +{productivityData.employeeProductivity.length - 5}
-                              </div>
-                            )}
-                          </div>
-
-                          {/* Top productive employees */}
-                          {productivityData.employeeProductivity.length > 0 && (
-                            <div>
-                              <h4 className="text-xs font-medium text-muted-foreground mb-3 flex items-center">
-                                <Award className="h-3.5 w-3.5 mr-1.5 text-amber-500" />
-                                Top Productive Employees
-                              </h4>
-                              <div className="space-y-2.5">
-                                {[...productivityData.employeeProductivity]
-                                  .sort((a, b) => (b.productivity_rate || 0) - (a.productivity_rate || 0))
-                                  .slice(0, 3)
-                                  .map((emp, index) => (
-                                    <div key={index} className="flex items-center justify-between text-xs bg-background/50 p-2 rounded">
-                                      <div className="flex items-center gap-2">
-                                        <span className="flex items-center justify-center w-5 h-5 rounded-full bg-primary/5 text-primary text-xs font-medium border border-primary/10">{index + 1}</span>
-                                        <span className="font-medium truncate max-w-[120px]">{emp.employee_name || `Employee ${index + 1}`}</span>
-                                      </div>
-                                      <Badge className="bg-primary/10 text-primary border-0 text-xs ml-2">
-                                        {emp.productivity_rate || 0}%
-                                      </Badge>
-                                    </div>
-                                  ))
-                                }
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      )}
                     </div>
-                    
                     {/* Productivity by Category */}
                     <div className="flex flex-col">
-                      <h3 className="text-sm font-medium mb-5 flex items-center">
+                      <h3 className="text-base font-semibold mb-5 flex items-center text-primary">
                         <PieChartIcon className="h-4 w-4 mr-2 text-primary" />
                         Productivity by Category
                       </h3>
@@ -655,27 +595,15 @@ export default function DashboardPage() {
                           <div key={index} className="space-y-2">
                             <div className="flex items-center justify-between text-sm">
                               <div className="flex items-center gap-2">
-                                <div className={`h-3 w-3 rounded-full ${category.color.replace('text-', 'bg-')}`}></div>
-                                <span>{category.name}</span>
+                                <div className={`h-3 w-3 rounded-full ${category.color.replace('text-', 'bg-')} border-2 border-white shadow`} />
+                                <span className="font-medium text-foreground/90">{category.name}</span>
                               </div>
-                              <span className="font-medium">{category.value}%</span>
+                              <span className="font-semibold text-primary">{category.value}%</span>
                             </div>
                             <Progress value={category.value} className={`h-2 ${category.color.replace('text-', 'bg-')}`} />
                           </div>
                         ))}
                       </div>
-                    </div>
-                    
-                    <div className="mt-8">
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="w-full rounded-full bg-card border-muted-foreground/20 hover:bg-primary/5 hover:border-primary/20 px-4"
-                        onClick={() => window.location.href = "/dashboard/activity-monitoring"}
-                      >
-                        View Detailed Report
-                        <ChevronRight className="ml-1.5 h-4 w-4" />
-                      </Button>
                     </div>
                   </div>
                 )}

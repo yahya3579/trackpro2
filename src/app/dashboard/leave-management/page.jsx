@@ -127,6 +127,9 @@ export default function LeaveManagementPage() {
   useEffect(() => {
     fetchLeaveRequests();
     fetchPresenceData();
+    if (selectedEmployee !== "all") {
+      fetchLeaveBalances();
+    }
   }, [selectedEmployee]);
 
   const fetchEmployees = async () => {
@@ -247,6 +250,29 @@ export default function LeaveManagementPage() {
     }
   };
 
+  const fetchLeaveBalances = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) return;
+      
+      if (selectedEmployee === "all") return;
+
+      const response = await fetch(`/api/leave-management/balances?employee_id=${selectedEmployee}`, {
+        headers: {
+          "x-auth-token": token,
+        },
+      });
+
+      if (!response.ok) throw new Error("Failed to fetch leave balances");
+
+      const data = await response.json();
+      setLeaveBalances(data.leaveBalances || []);
+    } catch (error) {
+      console.error("Error fetching leave balances:", error);
+      toast.error("Failed to load leave balances");
+    }
+  };
+
   const handleLeaveAction = async () => {
     if (!selectedLeave || !actionType) return;
     
@@ -288,9 +314,9 @@ export default function LeaveManagementPage() {
       
       // Show appropriate success message based on action
       if (actionType === "approved") {
-        toast.success(`Leave request approved successfully`);
+        toast.success(`Leave request for ${selectedLeave.employee_name} approved successfully. Their leave balance has been updated.`);
       } else if (actionType === "rejected") {
-        toast.success(`Leave request rejected with reason provided`);
+        toast.success(`Leave request for ${selectedLeave.employee_name} rejected with reason provided. They will be notified.`);
       } else {
         toast.success(`Leave request ${actionType} successfully`);
       }
@@ -314,6 +340,13 @@ export default function LeaveManagementPage() {
       
       // Also refetch to ensure data is synchronized with server
       fetchLeaveRequests();
+      fetchPresenceData(); // Refresh presence data as well since it will be updated
+      
+      // If we're viewing a specific employee and the action was approve/reject,
+      // fetch their updated leave balances
+      if (selectedEmployee !== "all" && (actionType === "approved" || actionType === "rejected")) {
+        fetchLeaveBalances();
+      }
       
       // Reset
       setSelectedLeave(null);
@@ -363,6 +396,43 @@ export default function LeaveManagementPage() {
       </div>
 
       <div className="space-y-6">
+        {/* Leave Balances for Selected Employee */}
+        {selectedEmployee !== "all" && leaveBalances.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Leave Balances</CardTitle>
+              <CardDescription>
+                Current leave balances for {employees.find(e => e.id.toString() === selectedEmployee)?.employee_name}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {leaveBalances.map((balance) => (
+                  <Card key={balance.id || balance.leave_type_id} className="bg-muted/50">
+                    <CardContent className="pt-6">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <div
+                            className="w-3 h-3 rounded-full"
+                            style={{ backgroundColor: balance.leave_type_color || "#888" }}
+                          ></div>
+                          <span className="font-medium">{balance.leave_type_name}</span>
+                        </div>
+                      </div>
+                      <div className="mt-2 text-3xl font-bold">
+                        {balance.remaining} <span className="text-sm font-normal text-muted-foreground">days remaining</span>
+                      </div>
+                      <div className="mt-1 text-sm text-muted-foreground">
+                        {balance.used} used of {balance.total_entitled} total
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Leave Requests */}
         <Card>
           <CardHeader>

@@ -49,6 +49,7 @@ export default function LeaveRequestsPage() {
   const [statusFilter, setStatusFilter] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
   const [organizationFilter, setOrganizationFilter] = useState("");
+  const [adminId, setAdminId] = useState(1); // Placeholder for admin ID
 
   // Sample organizations for the filter
   const organizations = [
@@ -162,7 +163,8 @@ export default function LeaveRequestsPage() {
         },
         body: JSON.stringify({
           id,
-          status: 'approved'
+          status: 'approved',
+          approver_id: adminId
         })
       });
       
@@ -206,7 +208,8 @@ export default function LeaveRequestsPage() {
         },
         body: JSON.stringify({
           id,
-          status: 'rejected'
+          status: 'rejected',
+          approver_id: adminId
         })
       });
       
@@ -270,11 +273,51 @@ export default function LeaveRequestsPage() {
     }
   };
 
+  // CSV Export Handler
+  const handleExportCSV = () => {
+    if (!filteredRequests.length) return;
+    const headers = [
+      "ID",
+      "Employee Name",
+      "Organization",
+      "Leave Type",
+      "Start Date",
+      "End Date",
+      "Total Days",
+      "Status",
+      "Reason"
+    ];
+    const rows = filteredRequests.map(req => [
+      req.id,
+      `"${(req.employee_name || '').replace(/"/g, '""')}"`,
+      `"${(req.organization || '').replace(/"/g, '""')}"`,
+      `"${(req.leave_type_name || '').replace(/"/g, '""')}"`,
+      req.start_date,
+      req.end_date,
+      req.total_days,
+      req.status,
+      `"${(req.reason || '').replace(/"/g, '""')}"`
+    ]);
+    const csvContent = [
+      headers.join(","),
+      ...rows.map(row => row.join(","))
+    ].join("\r\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", "leave_requests.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold tracking-tight">Leave Requests</h1>
-        <Button variant="outline">Export Data</Button>
+        <Button variant="outline" onClick={handleExportCSV}>Export Data</Button>
       </div>
 
       <Card>

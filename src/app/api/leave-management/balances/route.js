@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import db from '@/lib/db';
+import { getEmployeeIdFromToken } from '@/lib/auth';
+import jwt from 'jsonwebtoken';
 
 // GET - Fetch leave balances for an employee
 export async function GET(request) {
@@ -15,70 +17,67 @@ export async function GET(request) {
     
     // Get query parameters
     const { searchParams } = new URL(request.url);
-    const employeeId = searchParams.get('employee_id');
+    const requestedEmployeeId = searchParams.get('employee_id');
     const year = searchParams.get('year') || new Date().getFullYear();
     
+    // If specific employee ID is requested, use that (for admin)
+    // Otherwise, get employee ID from token (for employee viewing their own balance)
+    let employeeId = requestedEmployeeId;
+    
+    // If no specific employee requested, get from token
     if (!employeeId) {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'Employee ID is required' 
-      }, { status: 400 });
+      // Decode token to get user information
+      let decodedToken;
+      try {
+        decodedToken = jwt.verify(token, 'trackpro-secret-key');
+      } catch (err) {
+        return NextResponse.json({ 
+          success: false, 
+          error: 'Invalid authentication token' 
+        }, { status: 401 });
+      }
+      
+      // Get employee ID from token
+      const { employeeId: tokenEmployeeId, error } = await getEmployeeIdFromToken(decodedToken);
+      
+      if (!tokenEmployeeId) {
+        return NextResponse.json({ 
+          success: false, 
+          error: error || 'Could not identify employee from token'
+        }, { status: 400 });
+      }
+      
+      employeeId = tokenEmployeeId;
     }
     
-    // Get leave balances
-    const [leaveBalances] = await db.query(
-      `SELECT 
-        lb.id,
-        lb.employee_id,
-        e.employee_name,
-        lb.leave_type_id,
-        lt.name as leave_type_name,
-        lt.color as leave_type_color,
-        lt.is_paid,
-        lb.year,
-        lb.total_entitled,
-        lb.used,
-        lb.remaining,
-        lb.created_at,
+    // Query leave balances
+    const query = `
+      SELECT 
+        lb.id, 
+        lb.employee_id, 
+        lb.leave_type_id, 
+        lt.name AS leave_type_name,
+        lt.color AS leave_type_color,
+        lb.year, 
+        lb.total_entitled, 
+        lb.used, 
+        lb.remaining, 
+        lb.created_at, 
         lb.updated_at
-      FROM leave_balances lb
-      JOIN employees e ON lb.employee_id = e.id
-      JOIN leave_types lt ON lb.leave_type_id = lt.id
-      WHERE lb.employee_id = ? AND lb.year = ?`,
-      [employeeId, year]
-    );
+      FROM 
+        leave_balances lb
+      JOIN 
+        leave_types lt ON lb.leave_type_id = lt.id
+      WHERE 
+        lb.employee_id = ? AND lb.year = ?
+    `;
     
-    // Get all leave types to ensure all types are represented
-    const [leaveTypes] = await db.query('SELECT * FROM leave_types');
+    const [leaveBalances] = await db.query(query, [employeeId, year]);
     
-    // Create default balances for leave types that don't have a record
-    const existingTypeIds = leaveBalances.map(balance => balance.leave_type_id);
-    const missingTypes = leaveTypes.filter(type => !existingTypeIds.includes(type.id));
-    
-    // Add default balance entries for missing types
-    const defaultBalances = missingTypes.map(type => ({
-      id: null,
-      employee_id: parseInt(employeeId),
-      employee_name: leaveBalances[0]?.employee_name || 'Employee',
-      leave_type_id: type.id,
-      leave_type_name: type.name,
-      leave_type_color: type.color,
-      is_paid: type.is_paid,
-      year: parseInt(year),
-      total_entitled: type.is_paid ? 20 : 0, // Default 20 days for paid leave
-      used: 0,
-      remaining: type.is_paid ? 20 : 0,
-      created_at: null,
-      updated_at: null
-    }));
-    
-    // Combine actual and default balances
-    const allBalances = [...leaveBalances, ...defaultBalances];
-    
-    // Return data
+    // Return the leave balances
     return NextResponse.json({ 
       success: true, 
-      leaveBalances: allBalances
+      leaveBalances 
     });
     
   } catch (error) {

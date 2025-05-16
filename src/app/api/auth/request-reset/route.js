@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import crypto from 'crypto';
 import db from '../../../../lib/db';
+import { sendEmail } from '../../../../lib/email';
 
 export async function POST(request) {
   try {
@@ -20,7 +21,7 @@ export async function POST(request) {
     if (orgs.length > 0) {
       // Store the token in the database
       await db.query(
-        'INSERT INTO password_reset_tokens (user_id, email, token, expires_at, used, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+        'INSERT INTO password_reset_tokens (user_id, user_type, token, expires_at, used, created_at) VALUES (?, ?, ?, ?, ?, ?)',
         [orgs[0].id, 'organization', resetToken, resetTokenExpiry, 0, new Date()]
       );
     } else {
@@ -30,14 +31,23 @@ export async function POST(request) {
       if (admins.length > 0) {
         // Store the token in the database
         await db.query(
-          'INSERT INTO password_reset_tokens (user_id, user_type, token, expires_at) VALUES (?, ?, ?, ?)',
-          [admins[0].id, 'super_admin', resetToken, resetTokenExpiry]
+          'INSERT INTO password_reset_tokens (user_id, user_type, token, expires_at, used, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+          [admins[0].id, 'super_admin', resetToken, resetTokenExpiry, 0, new Date()]
         );
       } else {
-        // We don't want to reveal if the email exists or not, so we'll return success anyway
-        return NextResponse.json({
-          message: 'If your email is in our system, you will receive password reset instructions'
-        });
+        // Check if the user exists in users table (for employees/admins/team members)
+        const [users] = await db.query('SELECT id FROM users WHERE email = ?', [email]);
+        if (users.length > 0) {
+          await db.query(
+            'INSERT INTO password_reset_tokens (user_id, user_type, token, expires_at, used, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+            [users[0].id, 'user', resetToken, resetTokenExpiry, 0, new Date()]
+          );
+        } else {
+          // We don't want to reveal if the email exists or not, so we'll return success anyway
+          return NextResponse.json({
+            message: 'If your email is in our system, you will receive password reset instructions'
+          });
+        }
       }
     }
     

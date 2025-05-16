@@ -264,10 +264,18 @@ export async function PUT(request) {
     const data = await request.json();
     
     // Validate required fields
-    if (!data.id || !data.status || !data.approver_id) {
+    if (!data.id || !data.status) {
       return NextResponse.json({ 
         success: false, 
-        error: 'Leave request ID, status, and approver ID are required fields' 
+        error: 'Leave request ID and status are required fields' 
+      }, { status: 400 });
+    }
+
+    // If approving/rejecting, approver_id is required
+    if ((data.status === 'approved' || data.status === 'rejected') && !data.approver_id) {
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Approver ID is required when approving or rejecting a leave request' 
       }, { status: 400 });
     }
 
@@ -289,7 +297,7 @@ export async function PUT(request) {
     
     // Get current leave request
     const [leaveRequest] = await db.query(
-      `SELECT lr.*, e.employee_name, lt.name as leave_type_name 
+      `SELECT lr.*, e.employee_name, lt.name as leave_type_name, lt.is_paid 
        FROM leave_requests lr
        JOIN employees e ON lr.employee_id = e.id
        JOIN leave_types lt ON lr.leave_type_id = lt.id
@@ -304,25 +312,40 @@ export async function PUT(request) {
       }, { status: 404 });
     }
     
-    // Check if the request is already approved or rejected
-    if (leaveRequest[0].status !== 'pending' && leaveRequest[0].status !== 'auto_detected') {
+    // For cancellation, check if it's the employee's own request
+    if (data.status === 'cancelled' && data.approver_id === null) {
+      // Employee is cancelling their own request, check if it's still pending
+      if (leaveRequest[0].status !== 'pending') {
+        return NextResponse.json({ 
+          success: false, 
+          error: `Leave request cannot be cancelled because it is already ${leaveRequest[0].status}` 
+        }, { status: 400 });
+      }
+    } 
+    // For approval/rejection, check if it's pending or auto-detected
+    else if (leaveRequest[0].status !== 'pending' && leaveRequest[0].status !== 'auto_detected') {
       return NextResponse.json({ 
         success: false, 
         error: `Leave request cannot be updated because it is already ${leaveRequest[0].status}` 
       }, { status: 400 });
     }
 
-    // Get approver information
-    const [approver] = await db.query(
-      `SELECT employee_name FROM employees WHERE id = ?`,
-      [data.approver_id]
-    );
+    // Get approver information if present
+    let approverName = null;
+    if (data.approver_id) {
+      const [approver] = await db.query(
+        `SELECT employee_name FROM employees WHERE id = ?`,
+        [data.approver_id]
+      );
 
-    if (approver.length === 0) {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'Approver not found' 
-      }, { status: 404 });
+      if (approver.length === 0) {
+        return NextResponse.json({ 
+          success: false, 
+          error: 'Approver not found' 
+        }, { status: 404 });
+      }
+      
+      approverName = approver[0].employee_name;
     }
     
     // Start a transaction
@@ -346,54 +369,60 @@ export async function PUT(request) {
       const employee = leaveRequest[0].employee_name;
       const leaveType = leaveRequest[0].leave_type_name;
       const totalDays = leaveRequest[0].total_days;
+      const isPaidLeave = leaveRequest[0].is_paid;
       
       // If approved, update leave balance
       if (data.status === 'approved') {
-        // Update leave balance
-        const [balance] = await db.query(
-          `SELECT * FROM leave_balances 
-           WHERE employee_id = ? AND leave_type_id = ? AND year = YEAR(?)`,
-          [leaveRequest[0].employee_id, leaveRequest[0].leave_type_id, leaveRequest[0].start_date]
-        );
-        
-        if (balance.length > 0) {
-          await db.query(
-            `UPDATE leave_balances 
-             SET used = used + ?, remaining = total_entitled - (used + ?) 
-             WHERE id = ?`,
-            [
-              leaveRequest[0].total_days,
-              leaveRequest[0].total_days,
-              balance[0].id
-            ]
+        // Update leave balance for paid leave types
+        if (isPaidLeave) {
+          // Check if balance record exists
+          const [balance] = await db.query(
+            `SELECT * FROM leave_balances 
+             WHERE employee_id = ? AND leave_type_id = ? AND year = YEAR(?)`,
+            [leaveRequest[0].employee_id, leaveRequest[0].leave_type_id, leaveRequest[0].start_date]
           );
           
-          responseMessage = `Leave request for ${employee} has been approved. ${totalDays} days of ${leaveType} have been deducted from their balance.`;
+          if (balance.length > 0) {
+            await db.query(
+              `UPDATE leave_balances 
+               SET used = used + ?, remaining = total_entitled - (used + ?) 
+               WHERE id = ?`,
+              [
+                leaveRequest[0].total_days,
+                leaveRequest[0].total_days,
+                balance[0].id
+              ]
+            );
+            
+            responseMessage = `Leave request for ${employee} has been approved. ${totalDays} days of ${leaveType} have been deducted from their balance.`;
+          } else {
+            // Get default entitlement for the leave type
+            const [leaveType] = await db.query(
+              `SELECT * FROM leave_types WHERE id = ?`,
+              [leaveRequest[0].leave_type_id]
+            );
+            
+            const defaultEntitlement = leaveType[0].is_paid ? 20 : 0; // 20 days for paid leave types
+            
+            // Create new balance record
+            await db.query(
+              `INSERT INTO leave_balances 
+               (employee_id, leave_type_id, year, total_entitled, used, remaining) 
+               VALUES (?, ?, YEAR(?), ?, ?, ?)`,
+              [
+                leaveRequest[0].employee_id,
+                leaveRequest[0].leave_type_id,
+                leaveRequest[0].start_date,
+                defaultEntitlement,
+                leaveRequest[0].total_days,
+                defaultEntitlement - leaveRequest[0].total_days
+              ]
+            );
+            
+            responseMessage = `Leave request for ${employee} has been approved. A new leave balance record has been created with ${totalDays} days of ${leaveType} used.`;
+          }
         } else {
-          // Get default entitlement for the leave type
-          const [leaveType] = await db.query(
-            `SELECT * FROM leave_types WHERE id = ?`,
-            [leaveRequest[0].leave_type_id]
-          );
-          
-          const defaultEntitlement = leaveType[0].is_paid ? 20 : 0; // 20 days for paid leave types
-          
-          // Create new balance record
-          await db.query(
-            `INSERT INTO leave_balances 
-             (employee_id, leave_type_id, year, total_entitled, used, remaining) 
-             VALUES (?, ?, YEAR(?), ?, ?, ?)`,
-            [
-              leaveRequest[0].employee_id,
-              leaveRequest[0].leave_type_id,
-              leaveRequest[0].start_date,
-              defaultEntitlement,
-              leaveRequest[0].total_days,
-              defaultEntitlement - leaveRequest[0].total_days
-            ]
-          );
-          
-          responseMessage = `Leave request for ${employee} has been approved. A new leave balance record has been created with ${totalDays} days of ${leaveType} used.`;
+          responseMessage = `Leave request for ${employee} has been approved for ${totalDays} days of unpaid ${leaveType}.`;
         }
         
         // Update presence tracking for leave days
@@ -437,6 +466,29 @@ export async function PUT(request) {
         responseMessage = `Leave request for ${employee} has been cancelled.`;
       }
       
+      // Create notification in the system
+      if (data.status === 'approved' || data.status === 'rejected') {
+        // Check if notifications table exists
+        try {
+          await db.query(
+            `INSERT INTO notifications 
+             (employee_id, type, title, message, is_read, created_at) 
+             VALUES (?, ?, ?, ?, 0, NOW())`,
+            [
+              leaveRequest[0].employee_id,
+              data.status === 'approved' ? 'leave_approved' : 'leave_rejected',
+              data.status === 'approved' ? 'Leave Request Approved' : 'Leave Request Rejected',
+              data.status === 'approved' 
+                ? `Your ${leaveType} request for ${totalDays} days has been approved by ${approverName}.` 
+                : `Your ${leaveType} request for ${totalDays} days has been rejected. Reason: ${data.rejection_reason}`
+            ]
+          );
+        } catch (error) {
+          console.error('Failed to create notification:', error);
+          // Continue execution even if notification fails
+        }
+      }
+      
       // Commit transaction
       await db.query('COMMIT');
       
@@ -451,7 +503,7 @@ export async function PUT(request) {
           leave_type_name: leaveType,
           total_days: totalDays,
           status: data.status,
-          approved_by: approver[0].employee_name,
+          approved_by: approverName,
           approved_at: new Date().toISOString(),
           rejection_reason: data.rejection_reason || null
         }

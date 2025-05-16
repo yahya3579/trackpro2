@@ -139,11 +139,37 @@ export default function EmployeesPage() {
       return sortDirection === "asc" ? comparison : -comparison;
     });
 
+  // CSV Export Handler
+  const handleExportCSV = () => {
+    if (!employees.length) return;
+    const headers = ["ID", "Name", "Email", "Position", "Status"];
+    const rows = employees.map(emp => [
+      emp.id,
+      `"${emp.name.replace(/"/g, '""')}"`,
+      `"${emp.email.replace(/"/g, '""')}"`,
+      `"${emp.position.replace(/"/g, '""')}"`,
+      emp.status
+    ]);
+    const csvContent = [
+      headers.join(","),
+      ...rows.map(row => row.join(","))
+    ].join("\r\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", "employees.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold tracking-tight">Employees</h1>
-        <Button variant="default">Export Data</Button>
+        <Button variant="default" onClick={handleExportCSV}>Export Data</Button>
       </div>
 
       <Card>

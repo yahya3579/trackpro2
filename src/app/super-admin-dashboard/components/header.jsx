@@ -90,11 +90,6 @@ export function Header({ onMenuClick, className }) {
         <div className="flex-1" />
 
         <nav className="flex items-center gap-2">
-          <Button variant="ghost" size="icon">
-            <Bell className="h-5 w-5" />
-            <span className="sr-only">Notifications</span>
-          </Button>
-
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button

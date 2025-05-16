@@ -294,7 +294,7 @@ export default function SettingsPage() {
     >
       <div className="mb-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
-          <Avatar className="h-16 w-16 border-2 shadow-md">
+          <Avatar className="h-16 w-16 border-2 shadow-lg bg-gradient-to-br from-blue-100/60 to-purple-100/40">
             {photoUrl ? (
               <AvatarImage src={photoUrl} alt={name} />
             ) : (
@@ -304,13 +304,13 @@ export default function SettingsPage() {
             )}
           </Avatar>
           <div>
-            <h2 className="text-2xl font-bold">{name || "Organization"}</h2>
+            <h2 className="text-2xl font-bold text-primary drop-shadow-sm">{name || "Organization"}</h2>
             <div className="flex items-center gap-2 text-muted-foreground">
               <Mail className="h-4 w-4" />
               <span className="text-sm">{email}</span>
             </div>
             <div className="mt-1 flex items-center gap-2">
-              <Badge variant="outline" className="bg-blue-500/10 text-blue-500 hover:bg-blue-500/20">
+              <Badge variant="outline" className="bg-blue-500/10 text-blue-500 hover:bg-blue-500/20 shadow-sm">
                 <Shield className="h-3 w-3 mr-1" />
                 {role === 'organization_admin' ? 'Administrator' : 'Organization'}
               </Badge>
@@ -320,7 +320,7 @@ export default function SettingsPage() {
         <Button
           variant="outline"
           size="sm"
-          className="flex items-center gap-2"
+          className="flex items-center gap-2 shadow hover:shadow-md transition-all"
           onClick={refreshProfile}
         >
           <RefreshCw className="h-4 w-4" />
@@ -329,12 +329,12 @@ export default function SettingsPage() {
       </div>
       
       <Tabs defaultValue="profile" className="w-full">
-        <TabsList className="mb-4 grid grid-cols-2 md:w-[400px]">
-          <TabsTrigger value="profile" className="flex items-center gap-2">
+        <TabsList className="mb-4 grid grid-cols-2 md:w-[400px] bg-gradient-to-r from-blue-50/60 to-purple-50/40 rounded-xl shadow-sm">
+          <TabsTrigger value="profile" className="flex items-center gap-2 text-base font-semibold">
             <Building className="h-4 w-4" />
             <span>Organization Profile</span>
           </TabsTrigger>
-          <TabsTrigger value="security" className="flex items-center gap-2">
+          <TabsTrigger value="security" className="flex items-center gap-2 text-base font-semibold">
             <KeyRound className="h-4 w-4" />
             <span>Security</span>
           </TabsTrigger>
@@ -342,14 +342,14 @@ export default function SettingsPage() {
         
         {/* Profile Tab */}
         <TabsContent value="profile">
-          <div className="grid gap-6 md:grid-cols-2">
+          <div className="grid gap-8 md:grid-cols-2">
             <motion.div
               initial="hidden"
               animate="visible"
               variants={fadeIn}
               transition={{ duration: 0.3 }}
             >
-              <Card className="border border-border/60 shadow-sm">
+              <Card className="border border-border/60 shadow-lg rounded-2xl bg-gradient-to-br from-white/90 to-blue-50/40">
                 <CardHeader className="pb-3">
                   <div className="flex items-center gap-2">
                     <Building className="h-5 w-5 text-primary" />
@@ -375,7 +375,7 @@ export default function SettingsPage() {
                             <FormControl>
                               <Input 
                                 placeholder="Enter organization name" 
-                                className="bg-background/50"
+                                className="bg-background/50 rounded-lg focus:ring-2 focus:ring-blue-300 transition-all"
                                 {...field} 
                               />
                             </FormControl>
@@ -388,7 +388,7 @@ export default function SettingsPage() {
                       />
                       <Button 
                         type="submit" 
-                        className="w-full mt-2 gap-2"
+                        className="w-full mt-2 gap-2 rounded-lg shadow hover:shadow-md transition-all"
                         disabled={isLoading}
                       >
                         {isLoading ? (
@@ -415,7 +415,7 @@ export default function SettingsPage() {
               variants={fadeIn}
               transition={{ duration: 0.3, delay: 0.1 }}
             >
-              <Card className="border border-border/60 shadow-sm">
+              <Card className="border border-border/60 shadow-lg rounded-2xl bg-gradient-to-br from-white/90 to-purple-50/40">
                 <CardHeader className="pb-3">
                   <div className="flex items-center gap-2">
                     <Image className="h-5 w-5 text-primary" />
@@ -428,7 +428,7 @@ export default function SettingsPage() {
                 <Separator className="mb-4" />
                 <CardContent className="flex flex-col items-center justify-center gap-5">
                   <div className="relative group">
-                    <Avatar className="h-32 w-32 border-2 border-border shadow-md overflow-hidden transition-all">
+                    <Avatar className="h-32 w-32 border-2 border-border shadow-lg overflow-hidden transition-all bg-gradient-to-br from-blue-100/60 to-purple-100/40">
                       {profileImagePreview ? (
                         <AvatarImage src={profileImagePreview} alt="Profile preview" />
                       ) : (
@@ -440,29 +440,32 @@ export default function SettingsPage() {
                         </>
                       )}
                     </Avatar>
-                    
                     <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-full">
                       <label htmlFor="picture" className="cursor-pointer flex items-center justify-center w-full h-full">
                         <Upload className="h-8 w-8 text-white" />
                       </label>
                     </div>
                   </div>
-                  
                   <div className="flex flex-col items-center w-full gap-3">
-                    <div className="relative w-full">
-                      <Input
+                    <div className="relative w-full flex flex-col items-center">
+                      <input
                         id="picture"
                         type="file"
                         accept="image/*"
                         onChange={handleImageChange}
-                        className="file:bg-blue-500/10 file:text-blue-500 file:border-0 file:rounded-md file:font-medium file:px-3 file:py-2 hover:file:bg-blue-500/20 transition-all cursor-pointer"
+                        className="hidden"
                       />
+                      <label htmlFor="picture" className="w-full flex justify-center">
+                        <span className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-500/90 text-white font-medium shadow hover:bg-blue-600 transition-all cursor-pointer">
+                          <Upload className="h-5 w-5" />
+                          {profileImageFile ? profileImageFile.name : "Choose File"}
+                        </span>
+                      </label>
                     </div>
-                    
                     <div className="w-full space-y-2">
                       <Button 
                         type="button" 
-                        className="w-full gap-2"
+                        className="w-full gap-2 rounded-lg shadow hover:shadow-md transition-all"
                         onClick={handleImageUpload}
                         disabled={isLoading || !profileImageFile}
                       >
@@ -478,7 +481,6 @@ export default function SettingsPage() {
                           </>
                         )}
                       </Button>
-                      
                       <p className="text-xs text-center text-muted-foreground">
                         <Info className="h-3 w-3 inline mr-1" />
                         Supported formats: JPEG, PNG, GIF (Max: 5MB)
@@ -499,7 +501,7 @@ export default function SettingsPage() {
             variants={fadeIn}
             transition={{ duration: 0.3 }}
           >
-            <Card className="max-w-xl mx-auto border border-border/60 shadow-sm">
+            <Card className="max-w-xl mx-auto border border-border/60 shadow-lg rounded-2xl bg-gradient-to-br from-white/90 to-blue-50/40">
               <CardHeader className="pb-3">
                 <div className="flex items-center gap-2">
                   <Lock className="h-5 w-5 text-primary" />
@@ -526,7 +528,7 @@ export default function SettingsPage() {
                             <Input 
                               type="password" 
                               placeholder="••••••••" 
-                              className="bg-background/50"
+                              className="bg-background/50 rounded-lg focus:ring-2 focus:ring-blue-300 transition-all"
                               {...field} 
                             />
                           </FormControl>
@@ -551,7 +553,7 @@ export default function SettingsPage() {
                                 <Input 
                                   type="password" 
                                   placeholder="••••••••" 
-                                  className="bg-background/50"
+                                  className="bg-background/50 rounded-lg focus:ring-2 focus:ring-blue-300 transition-all"
                                   {...field} 
                                 />
                               </FormControl>
@@ -570,7 +572,7 @@ export default function SettingsPage() {
                                 <Input 
                                   type="password" 
                                   placeholder="••••••••" 
-                                  className="bg-background/50"
+                                  className="bg-background/50 rounded-lg focus:ring-2 focus:ring-blue-300 transition-all"
                                   {...field} 
                                 />
                               </FormControl>
@@ -591,10 +593,9 @@ export default function SettingsPage() {
                         </ul>
                       </div>
                     </div>
-                    
                     <Button 
                       type="submit" 
-                      className="w-full mt-2 gap-2"
+                      className="w-full mt-2 gap-2 rounded-lg shadow hover:shadow-md transition-all"
                       disabled={isLoading}
                     >
                       {isLoading ? (
@@ -612,7 +613,7 @@ export default function SettingsPage() {
                   </form>
                 </Form>
               </CardContent>
-              <CardFooter className="border-t px-6 py-4 bg-muted/20 flex items-center gap-2 text-sm text-muted-foreground">
+              <CardFooter className="border-t px-6 py-4 bg-muted/20 flex items-center gap-2 text-sm text-muted-foreground rounded-b-2xl">
                 <AlertCircle className="h-4 w-4 text-amber-500" />
                 For security reasons, you'll be asked to login again after changing your password.
               </CardFooter>

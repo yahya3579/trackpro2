@@ -11,6 +11,15 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar as CalendarIcon, Plus, Upload, Pencil } from "lucide-react";
 import { format } from "date-fns";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationPrevious,
+  PaginationNext,
+  PaginationEllipsis,
+} from "@/components/ui/pagination";
 
 export default function HolidayManagementPage() {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear().toString());
@@ -34,8 +43,14 @@ export default function HolidayManagementPage() {
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: 6 }, (_, i) => (currentYear - i).toString());
 
+  const [page, setPage] = useState(1);
+  const pageSize = 10;
+  const totalPages = Math.ceil(holidays.length / pageSize);
+  const paginatedHolidays = holidays.slice((page - 1) * pageSize, page * pageSize);
+
   useEffect(() => {
     fetchHolidays();
+    setPage(1); // Reset to first page when filters change
   }, [selectedYear, selectedType]);
 
   const fetchHolidays = async () => {
@@ -232,24 +247,61 @@ export default function HolidayManagementPage() {
         ) : holidays.length === 0 ? (
           <div className="text-center py-16 text-gray-500">You are yet to add your first holiday for {selectedYear}!</div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {holidays.map((holiday) => (
-              <div key={holiday.id} className="border rounded-lg p-4 shadow-sm">
-                <div className="flex justify-between">
-                  <div className="text-sm text-gray-500">{format(new Date(holiday.date), "PPP")}</div>
-                  <div className={`text-xs px-2 py-1 rounded-full ${holiday.type === 'public' ? 'bg-blue-100 text-blue-800' : 'bg-purple-100 text-purple-800'}`}>{holiday.type === 'public' ? 'Public Holiday' : 'Office Holiday'}</div>
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {paginatedHolidays.map((holiday) => (
+                <div key={holiday.id} className="border rounded-lg p-4 shadow-sm">
+                  <div className="flex justify-between">
+                    <div className="text-sm text-gray-500">{format(new Date(holiday.date), "PPP")}</div>
+                    <div className={`text-xs px-2 py-1 rounded-full ${holiday.type === 'public' ? 'bg-blue-100 text-blue-800' : 'bg-purple-100 text-purple-800'}`}>{holiday.type === 'public' ? 'Public Holiday' : 'Office Holiday'}</div>
+                  </div>
+                  <div className="mt-2 font-medium">{holiday.title}</div>
+                  <div className="mt-1 text-sm">{holiday.session === 'full_day' ? 'Full Day' : holiday.session === 'half_day_first' ? 'Half Day (1st Half)' : 'Half Day (2nd Half)'}</div>
+                  <div className="mt-3 flex justify-end gap-2">
+                    <Button variant="outline" size="sm" className="gap-1" onClick={() => openEditDialog(holiday)}>
+                      <Pencil size={14}/> Edit
+                    </Button>
+                    <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700 hover:bg-red-50" onClick={() => handleDeleteHoliday(holiday.id)}>Delete</Button>
+                  </div>
                 </div>
-                <div className="mt-2 font-medium">{holiday.title}</div>
-                <div className="mt-1 text-sm">{holiday.session === 'full_day' ? 'Full Day' : holiday.session === 'half_day_first' ? 'Half Day (1st Half)' : 'Half Day (2nd Half)'}</div>
-                <div className="mt-3 flex justify-end gap-2">
-                  <Button variant="outline" size="sm" className="gap-1" onClick={() => openEditDialog(holiday)}>
-                    <Pencil size={14}/> Edit
-                  </Button>
-                  <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700 hover:bg-red-50" onClick={() => handleDeleteHoliday(holiday.id)}>Delete</Button>
-                </div>
+              ))}
+            </div>
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <div className="mt-8 flex justify-center">
+                <Pagination>
+                  <PaginationContent>
+                    <PaginationItem>
+                      <PaginationPrevious
+                        onClick={() => setPage((p) => Math.max(1, p - 1))}
+                        aria-disabled={page === 1}
+                        tabIndex={page === 1 ? -1 : 0}
+                        style={{ pointerEvents: page === 1 ? 'none' : undefined, opacity: page === 1 ? 0.5 : 1 }}
+                      />
+                    </PaginationItem>
+                    {Array.from({ length: totalPages }).map((_, i) => (
+                      <PaginationItem key={i}>
+                        <PaginationLink
+                          isActive={page === i + 1}
+                          onClick={() => setPage(i + 1)}
+                        >
+                          {i + 1}
+                        </PaginationLink>
+                      </PaginationItem>
+                    ))}
+                    <PaginationItem>
+                      <PaginationNext
+                        onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                        aria-disabled={page === totalPages}
+                        tabIndex={page === totalPages ? -1 : 0}
+                        style={{ pointerEvents: page === totalPages ? 'none' : undefined, opacity: page === totalPages ? 0.5 : 1 }}
+                      />
+                    </PaginationItem>
+                  </PaginationContent>
+                </Pagination>
               </div>
-            ))}
-          </div>
+            )}
+          </>
         )}
       </div>
     </PageTemplate>

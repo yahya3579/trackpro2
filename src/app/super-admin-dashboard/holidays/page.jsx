@@ -135,17 +135,49 @@ export default function HolidaysPage() {
     return date >= today;
   };
 
+  // CSV Export Handler
+  const handleExportCSV = () => {
+    if (!filteredHolidays.length) return;
+    const headers = [
+      "ID",
+      "Title",
+      "Date",
+      "Type",
+      "Status"
+    ];
+    const rows = filteredHolidays.map(holiday => [
+      holiday.id,
+      `"${(holiday.title || '').replace(/"/g, '""')}"`,
+      holiday.date,
+      `"${(holiday.type || '').replace(/"/g, '""')}"`,
+      isUpcoming(holiday.date) ? "Upcoming" : "Passed"
+    ]);
+    const csvContent = [
+      headers.join(","),
+      ...rows.map(row => row.join(","))
+    ].join("\r\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", "holidays.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold tracking-tight">Holidays</h1>
-        <Button variant="outline">Export Calendar</Button>
+        <h1 className="text-2xl font-bold tracking-tight text-primary drop-shadow-sm">Holidays</h1>
+        <Button variant="outline" className="shadow hover:shadow-md transition-all rounded-lg" onClick={handleExportCSV}>Export Calendar</Button>
       </div>
 
-      <Card>
+      <Card className="border border-border/60 shadow-lg rounded-2xl bg-gradient-to-br from-white/90 to-blue-50/40">
         <CardHeader className="pb-3">
-          <CardTitle>Company Holidays</CardTitle>
-          <CardDescription>
+          <CardTitle className="text-xl font-bold text-primary">Company Holidays</CardTitle>
+          <CardDescription className="text-base text-muted-foreground">
             View all holidays across organizations
           </CardDescription>
         </CardHeader>
@@ -153,7 +185,7 @@ export default function HolidaysPage() {
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-6">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
               <Select value={yearFilter} onValueChange={setYearFilter}>
-                <SelectTrigger className="w-full sm:w-[120px]">
+                <SelectTrigger className="w-full sm:w-[120px] rounded-lg">
                   <SelectValue placeholder="Select Year" />
                 </SelectTrigger>
                 <SelectContent>
@@ -189,9 +221,9 @@ export default function HolidaysPage() {
               </p>
             </div>
           ) : (
-            <div className="rounded-md border">
+            <div className="rounded-2xl border overflow-hidden">
               <Table>
-                <TableHeader>
+                <TableHeader className="bg-blue-50/60">
                   <TableRow>
                     <TableHead>
                       <div 
@@ -225,7 +257,7 @@ export default function HolidaysPage() {
                 </TableHeader>
                 <TableBody>
                   {filteredHolidays.map((holiday) => (
-                    <TableRow key={holiday.id}>
+                    <TableRow key={holiday.id} className="hover:bg-blue-50/30 transition-all">
                       <TableCell>
                         {formatDate(holiday.date)}
                       </TableCell>
@@ -233,7 +265,7 @@ export default function HolidaysPage() {
                         {holiday.title}
                       </TableCell>
                       <TableCell>
-                        <Badge variant={holiday.type === "Public Holiday" ? "secondary" : "outline"}>
+                        <Badge variant={holiday.type === "Public Holiday" ? "secondary" : "outline"} className="rounded-full px-3 py-1 text-xs">
                           {holiday.type}
                         </Badge>
                       </TableCell>
@@ -244,7 +276,7 @@ export default function HolidaysPage() {
                             isUpcoming(holiday.date) 
                               ? "bg-green-100 text-green-800 hover:bg-green-100"
                               : "bg-red-100 text-red-800 hover:bg-red-100"
-                          )}
+                          ) + " rounded-full px-3 py-1 text-xs"}
                         >
                           {isUpcoming(holiday.date) ? "Upcoming" : "Passed"}
                         </Badge>

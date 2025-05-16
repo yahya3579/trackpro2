@@ -62,7 +62,7 @@ export default function SuperAdminDashboardPage() {
           headers: { 'x-auth-token': 'token' }
         });
         
-        // Fetch pending leaves
+        // Fetch all leave requests from the main endpoint
         const leavesRes = await fetch('/api/leave-management', {
           headers: { 'x-auth-token': 'token' }
         });
@@ -98,76 +98,66 @@ export default function SuperAdminDashboardPage() {
           }
         }
         
-        // Process leaves data from API
+        // Process all leave requests
         if (leavesRes.ok) {
-          const leavesData = await leavesRes.json();
-          console.log('Leaves data:', leavesData);
-          
-          // Check all possible response structures
-          const allLeaveRequests = leavesData.leaveRequests || 
-                              leavesData.leaves || 
-                              leavesData.data?.leaves || 
-                              leavesData.data?.leaveRequests || 
-                              [];
-          
-          // Filter for pending leave requests that need approval/rejection
-          const pendingRequests = allLeaveRequests.filter(leave => 
-            leave.status === 'pending' || 
-            leave.status === 'awaiting_approval' || 
-            leave.status === 'waiting_approval'
-          );
-          
-          console.log('Pending leave requests:', pendingRequests);
-          
-          // Update the stats with pending leaves count
+          try {
+            const leavesData = await leavesRes.json();
+            console.log('Leave requests data:', leavesData);
+            
+            if (leavesData.success && Array.isArray(leavesData.leaveRequests)) {
+              const allLeaves = leavesData.leaveRequests;
+              const pendingLeaves = allLeaves.filter(leave => 
+                leave.status === 'pending' || 
+                leave.status === 'approved' || 
+                leave.status === 'rejected'
+              );
+              
+              console.log('Received leaves data, total count:', allLeaves.length);
+              console.log('Pending leaves count:', pendingLeaves.length);
+              
+              // Update the leave requests count in stats
+              setStats(prev => ({
+                ...prev,
+                pendingLeaves: allLeaves.length
+              }));
+              
+              // Store pending leave requests for approval/rejection
+              setLeaveRequests(pendingLeaves);
+              
+              // Just show any 2 pending leave requests on the dashboard
+              setRecentLeaves(pendingLeaves.slice(0, 2));
+              
+              console.log('Set pending leave requests:', pendingLeaves.length);
+              console.log('Display on dashboard:', pendingLeaves.slice(0, 2));
+            } else {
+              // No leave requests found, reset state
+              console.log('No leave requests found or API returned incorrect format');
+              setLeaveRequests([]);
+              setRecentLeaves([]);
+              setStats(prev => ({
+                ...prev,
+                pendingLeaves: 0
+              }));
+            }
+          } catch (parseError) {
+            console.error('Error parsing leaves response:', parseError);
+            // Reset states on error
+            setLeaveRequests([]);
+            setRecentLeaves([]);
+            setStats(prev => ({
+              ...prev,
+              pendingLeaves: 0
+            }));
+          }
+        } else {
+          console.error('Error fetching leave requests', leavesRes.statusText);
+          // Reset leave requests if API call fails
+          setLeaveRequests([]);
+          setRecentLeaves([]);
           setStats(prev => ({
             ...prev,
-            pendingLeaves: pendingRequests.length
+            pendingLeaves: 0
           }));
-          
-          // Set pending leave requests for approval/rejection tracking
-          setLeaveRequests(pendingRequests);
-          
-          // Show any two pending leave requests on the dashboard
-          setRecentLeaves(pendingRequests.slice(0, 2));
-          
-          if (pendingRequests.length === 0) {
-            console.log('No pending leave requests found in response');
-            
-            // Try fetching directly from the main endpoint as fallback
-            try {
-              const pendingLeavesRes = await fetch('/api/leave-management/pending', {
-                headers: { 'x-auth-token': 'token' }
-              });
-              
-              if (pendingLeavesRes.ok) {
-                const pendingData = await pendingLeavesRes.json();
-                console.log('Pending leaves endpoint:', pendingData);
-                
-                const fallbackPendingLeaves = pendingData.leaves || 
-                                 pendingData.leaveRequests || 
-                                 pendingData.data?.leaves || 
-                                 pendingData.data?.leaveRequests || 
-                                 [];
-                
-                if (fallbackPendingLeaves.length > 0) {
-                  // Update stats with pending leaves count
-                  setStats(prev => ({
-                    ...prev,
-                    pendingLeaves: fallbackPendingLeaves.length
-                  }));
-                  
-                  // Store pending leaves for approval/rejection
-                  setLeaveRequests(fallbackPendingLeaves);
-                  
-                  // Show any two pending leave requests on the dashboard
-                  setRecentLeaves(fallbackPendingLeaves.slice(0, 2));
-                }
-              }
-            } catch (pendingError) {
-              console.error("Error fetching pending leave data:", pendingError);
-            }
-          }
         }
         
         // Process productivity summary
@@ -264,6 +254,8 @@ export default function SuperAdminDashboardPage() {
         setRecentLeaves([]);
       } finally {
         setLoading(false);
+        
+        // No need to add sample data at this point
       }
     };
 
@@ -281,33 +273,58 @@ export default function SuperAdminDashboardPage() {
   );
 
   const handleLeaveAction = async (leaveId, action) => {
-    // Implement leave approval/rejection logic here
-    console.log(`Leave ${leaveId} ${action}`);
-    
     try {
-      const response = await fetch(`/api/leave-management/${leaveId}/${action}`, {
+      // First check if the action is valid
+      if (action !== 'approve' && action !== 'reject') {
+        alert('Invalid action. Only approve or reject are allowed.');
+        return;
+      }
+      
+      console.log(`Processing leave ${leaveId} - Action: ${action}`);
+      
+      // Find the approver ID (in a real app, this would come from the logged-in user)
+      const approverId = 1; // Using a dummy ID for the super admin
+      
+      // Prepare the request payload
+      const payload = {
+        id: leaveId,
+        status: action === 'approve' ? 'approved' : 'rejected',
+        approver_id: approverId,
+        rejection_reason: action === 'reject' ? 'Rejected by admin' : null
+      };
+      
+      // Make the API call to update the leave request
+      const response = await fetch('/api/leave-management', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           'x-auth-token': 'token'
-        }
+        },
+        body: JSON.stringify(payload)
       });
       
       if (response.ok) {
-        // Refresh the leave requests data
-        const updatedLeaveRequests = leaveRequests.filter(request => request.id !== leaveId);
-        setLeaveRequests(updatedLeaveRequests);
-        setRecentLeaves(updatedLeaveRequests.slice(0, 2));
+        const result = await response.json();
+        console.log('Leave request processed:', result);
         
-        // Update the pending leaves count
-        setStats(prev => ({
-          ...prev,
-          pendingLeaves: updatedLeaveRequests.length
-        }));
-        
-        alert(`Leave request ${action === 'approve' ? 'approved' : 'rejected'} successfully`);
+        if (result.success) {
+          // Remove the processed leave request from state
+          const updatedLeaveRequests = leaveRequests.filter(req => req.id !== leaveId);
+          setLeaveRequests(updatedLeaveRequests);
+          setRecentLeaves(updatedLeaveRequests.slice(0, 2));
+          
+          // Update the pending leaves count
+          setStats(prev => ({
+            ...prev,
+            pendingLeaves: updatedLeaveRequests.length
+          }));
+          
+          alert(`Leave request ${action === 'approve' ? 'approved' : 'rejected'} successfully.`);
+        } else {
+          alert(`Error: ${result.error || 'Failed to process leave request'}`);
+        }
       } else {
-        alert('Failed to process leave request. Please try again.');
+        alert(`API Error: ${response.statusText}`);
       }
     } catch (error) {
       console.error(`Error ${action}ing leave request:`, error);
@@ -347,23 +364,6 @@ export default function SuperAdminDashboardPage() {
         
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Pending Leaves</CardTitle>
-            <ClipboardCheck className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <Skeleton className="h-8 w-24" />
-            ) : (
-              <div className="text-2xl font-bold">{stats.pendingLeaves}</div>
-            )}
-            <p className="text-xs text-muted-foreground mt-1">
-              Awaiting approval
-            </p>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Productivity</CardTitle>
             <BarChart2 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
@@ -371,21 +371,19 @@ export default function SuperAdminDashboardPage() {
             {loading ? (
               <Skeleton className="h-8 w-24" />
             ) : (
-              <div className="text-2xl font-bold">{stats.productivityScore}%</div>
+              <div className="text-2xl font-bold">{productivityData[0]?.value || 0}%</div>
             )}
-            <Progress value={stats.productivityScore} className="h-1 mt-2" />
+            <Progress value={productivityData[0]?.value || 0} className="h-1 mt-2" />
           </CardContent>
         </Card>
       </div>
 
       <div className="grid gap-4 md:grid-cols-7">
         {/* Productivity Overview Card */}
-        <Card className="md:col-span-3">
+        <Card className="md:col-span-3 bg-gradient-to-br from-white/90 to-blue-50/60 border border-border/40 shadow-xl hover:shadow-2xl transition-all duration-300 rounded-2xl">
           <CardHeader>
-            <CardTitle>Productivity Overview</CardTitle>
-            <CardDescription>
-              System-wide productivity metrics
-            </CardDescription>
+            <CardTitle className="text-xl font-bold text-primary">Productivity Overview</CardTitle>
+            <CardDescription className="text-base text-muted-foreground">System-wide productivity metrics</CardDescription>
           </CardHeader>
           <CardContent>
             {loading ? (
@@ -400,38 +398,45 @@ export default function SuperAdminDashboardPage() {
             ) : (
               <div className="flex flex-col gap-4">
                 <div className="flex gap-4">
-                  <div className="w-1/2 h-[200px]">
+                  <div className="w-1/2 h-[220px] flex items-center justify-center">
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
                         <Pie
                           data={productivityData}
                           cx="50%"
                           cy="50%"
-                          innerRadius={50}
-                          outerRadius={80}
+                          innerRadius={60}
+                          outerRadius={90}
                           paddingAngle={2}
                           dataKey="value"
-                          label={({ name, percent }) => `${(percent * 100).toFixed(0)}%`}
+                          label={false}
                           labelLine={false}
+                          isAnimationActive={true}
                         >
                           {productivityData.map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                            <Cell
+                              key={`cell-${index}`}
+                              fill={COLORS[index % COLORS.length]}
+                              style={{ filter: 'drop-shadow(0 2px 8px rgba(59,130,246,0.10))', cursor: 'pointer', transition: 'filter 0.2s' }}
+                              onMouseOver={e => { if (e && e.target) e.target.style.filter = 'brightness(1.15) drop-shadow(0 4px 16px rgba(59,130,246,0.18))'; }}
+                              onMouseOut={e => { if (e && e.target) e.target.style.filter = 'drop-shadow(0 2px 8px rgba(59,130,246,0.10))'; }}
+                            />
                           ))}
                         </Pie>
                       </PieChart>
                     </ResponsiveContainer>
                   </div>
-                  <div className="w-1/2 flex flex-col justify-center gap-2">
+                  <div className="w-1/2 flex flex-col justify-center gap-3">
+                    {/* Custom Legend */}
                     {productivityData.map((entry, index) => (
-                      <div key={index} className="flex items-center gap-2">
-                        <div className="h-3 w-3 rounded-full" style={{ backgroundColor: COLORS[index] }} />
-                        <span className="text-sm">{entry.name}: </span>
-                        <span className="text-sm font-medium">{entry.value}%</span>
+                      <div key={index} className="flex items-center gap-3">
+                        <span className="block w-4 h-4 rounded-full" style={{ backgroundColor: COLORS[index] }} />
+                        <span className="text-base font-medium text-gray-700">{entry.name}</span>
+                        <span className="text-base font-semibold text-primary">{entry.value}%</span>
                       </div>
                     ))}
                   </div>
                 </div>
-                
                 {categoryData.length > 0 && (
                   <div className="mt-2">
                     <h4 className="text-sm font-medium mb-2">Top Activity Categories</h4>
@@ -456,78 +461,12 @@ export default function SuperAdminDashboardPage() {
         {/* Recent Leaves Card */}
         <Card className="md:col-span-4">
           <CardHeader>
-            <CardTitle>Pending Leave Requests</CardTitle>
+            <CardTitle>Leave Requests</CardTitle>
             <CardDescription>
-              Leave requests awaiting approval or rejection
+              View leave requests
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            {loading ? (
-              <div className="space-y-2">
-                {Array(3).fill(0).map((_, i) => (
-                  <div key={i} className="flex items-center gap-2">
-                    <Skeleton className="h-10 w-10 rounded-full" />
-                    <div className="space-y-1 flex-1">
-                      <Skeleton className="h-4 w-1/3" />
-                      <Skeleton className="h-3 w-1/2" />
-                    </div>
-                    <Skeleton className="h-8 w-20" />
-                  </div>
-                ))}
-              </div>
-            ) : recentLeaves.length === 0 ? (
-              renderEmptyState()
-            ) : (
-              <div className="space-y-4">
-                {recentLeaves.map((request) => (
-                  <div key={request.id} className="flex items-center gap-4">
-                    <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
-                      <Users className="h-5 w-5 text-primary" />
-                    </div>
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">{request.employee_name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {request.leave_type} • {request.duration || request.days} {request.duration === 1 || request.days === 1 ? 'day' : 'days'}
-                        <span className="ml-1">
-                          • {request.status === 'approved' ? 'Approved' : 
-                             request.status === 'rejected' ? 'Rejected' : 'Pending'}
-                        </span>
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        <Calendar className="h-3 w-3 inline mr-1" />
-                        {new Date(request.created_at || request.request_date || request.date || request.start_date).toLocaleDateString()}
-                        {request.start_date && request.end_date && (
-                          <span> to {new Date(request.end_date).toLocaleDateString()}</span>
-                        )}
-                      </p>
-                    </div>
-                    {(request.status === 'pending' || 
-                      request.status === 'awaiting_approval' || 
-                      request.status === 'waiting_approval') && (
-                      <div className="flex gap-1">
-                        <Button 
-                          size="icon" 
-                          variant="outline" 
-                          className="h-8 w-8 text-green-600"
-                          onClick={() => handleLeaveAction(request.id, 'approve')}
-                        >
-                          <CheckCircle2 className="h-4 w-4" />
-                        </Button>
-                        <Button 
-                          size="icon" 
-                          variant="outline" 
-                          className="h-8 w-8 text-red-600"
-                          onClick={() => handleLeaveAction(request.id, 'reject')}
-                        >
-                          <XCircle className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
+          
           <CardFooter className="border-t px-6 py-3">
             <Button variant="ghost" size="sm" className="gap-1 h-8" onClick={() => window.location.href = "/super-admin-dashboard/leave-requests"}>
               <span>View all pending requests</span>
