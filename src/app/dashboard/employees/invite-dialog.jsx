@@ -144,7 +144,6 @@ export function InviteEmployeeDialog({ open, onOpenChange }) {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="Admin">Admin</SelectItem>
-                <SelectItem value="Team Head">Team Head</SelectItem>
                 <SelectItem value="Team Member">Team Member</SelectItem>
               </SelectContent>
             </Select>
@@ -176,9 +175,6 @@ export function InviteEmployeeDialog({ open, onOpenChange }) {
         <div className="bg-muted/30 -mx-6 px-6 py-4 mt-4 text-sm text-muted-foreground">
           <div className="mb-2">
             <strong>Team Member</strong> is a person who you want to be monitored
-          </div>
-          <div className="mb-2">
-            <strong>Team Head</strong> can see their team members' tracking data in workflow website
           </div>
           <div>
             <strong>Admin</strong> has the control of everything from adding a member, creating a team, seeing the tracking data

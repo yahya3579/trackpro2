@@ -79,7 +79,7 @@ export async function POST(request) {
       if (isTeamMember) {
         redirectUrl = '/employee-dashboard';
       } else if (isAdmin) {
-        redirectUrl = '/super-admin';
+        redirectUrl = '/super-admin-dashboard';
       } else {
         redirectUrl = '/dashboard';
       }
