@@ -239,7 +239,7 @@ export default function AppUsagePage() {
       .slice(0, 10)
       .map(app => ({
         name: app.application_name,
-        value: app.total_duration,
+        value: app.total_duration / 3600,
         category: app.category,
         productive: app.productive,
         usage_count: app.usage_count,
@@ -478,7 +478,7 @@ export default function AppUsagePage() {
                     axisLine={false}
                     tickLine={false}
                     tick={{ fontSize: 12, fill: '#888' }}
-                    label={{ value: 'Time (seconds)', position: 'insideBottom', offset: -5, fontSize: 12, fill: '#888' }}
+                    label={{ value: 'Time (hours)', position: 'insideBottom', offset: -5, fontSize: 12, fill: '#888' }}
                   />
                   <YAxis
                     type="category"
@@ -499,7 +499,7 @@ export default function AppUsagePage() {
                             <span className="block w-3 h-3 rounded-full" style={{ background: CATEGORY_COLORS[app.category] || CATEGORY_COLORS.other }} />
                             <span className="capitalize text-xs">{app.category}</span>
                           </div>
-                          <div className="text-xs text-muted-foreground">{app.formattedTime} ({app.value} sec)</div>
+                          <div className="text-xs text-muted-foreground">{app.formattedTime} ({app.value.toFixed(1)} hrs)</div>
                           <div className="text-xs">Usage Count: <span className="font-medium">{app.usage_count}</span></div>
                           <div className="text-xs">Status: <Badge variant={app.productive ? 'default' : 'destructive'}>{app.productive ? 'Productive' : 'Non-productive'}</Badge></div>
                         </div>

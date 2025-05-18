@@ -574,12 +574,12 @@ export default function DashboardPage() {
                       <div className="mt-7 flex flex-col gap-3 w-full max-w-xs bg-muted/40 rounded-xl p-4 shadow-inner">
                         <div className="flex items-center justify-between text-sm font-semibold">
                           <span>Productive Hours</span>
-                          <span className="text-primary">{productiveHours}h</span>
+                          <span className="text-primary">{productiveHours.toFixed(1)}h</span>
                         </div>
                         <Progress value={(productiveHours / (totalTrackedHours || 1)) * 100} className="h-2 bg-primary/20" />
                         <div className="flex items-center justify-between text-sm font-semibold mt-2">
                           <span>Non-Productive Hours</span>
-                          <span className="text-destructive">{nonProductiveHours}h</span>
+                          <span className="text-destructive">{nonProductiveHours.toFixed(1)}h</span>
                         </div>
                         <Progress value={(nonProductiveHours / (totalTrackedHours || 1)) * 100} className="h-2 bg-destructive/20" />
                       </div>

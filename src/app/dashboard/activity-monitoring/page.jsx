@@ -251,9 +251,10 @@ export default function ActivityMonitoringPage() {
       .slice(0, 10)
       .map(app => ({
         name: app.application_name,
-        value: app.total_duration,
+        value: app.total_duration / 3600, // Convert seconds to hours
         category: app.category,
         productive: app.productive,
+        usage_count: app.usage_count,
         formattedTime: formatTime(app.total_duration)
       }));
   };
@@ -525,7 +526,7 @@ export default function ActivityMonitoringPage() {
                           axisLine={false}
                           tickLine={false}
                           tick={{ fontSize: 12, fill: '#888' }}
-                          label={{ value: 'Time (seconds)', position: 'insideBottom', offset: -5, fontSize: 12, fill: '#888' }}
+                          label={{ value: 'Time (hours)', position: 'insideBottom', offset: -5, fontSize: 12, fill: '#888' }}
                         />
                         <YAxis
                           type="category"
@@ -546,7 +547,7 @@ export default function ActivityMonitoringPage() {
                                   <span className="block w-3 h-3 rounded-full" style={{ background: CATEGORY_COLORS[app.category] || CATEGORY_COLORS.other }} />
                                   <span className="capitalize text-xs">{app.category}</span>
                                 </div>
-                                <div className="text-xs text-muted-foreground">{app.formattedTime} ({app.value} sec)</div>
+                                <div className="text-xs text-muted-foreground">{app.formattedTime} ({app.value.toFixed(1)} hrs)</div>
                                 <div className="text-xs">Usage Count: <span className="font-medium">{app.usage_count}</span></div>
                                 <div className="text-xs">Status: <Badge variant={app.productive ? 'default' : 'destructive'}>{app.productive ? 'Productive' : 'Non-productive'}</Badge></div>
                               </div>
@@ -592,10 +593,20 @@ export default function ActivityMonitoringPage() {
                       outerRadius={120}
                       fill="#8884d8"
                       dataKey="value"
-                      label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                      label={({ name, percent }) => (
+                        <tspan style={{
+                          fill: name === 'Productive' ? '#10b981' : name === 'Non-productive' ? '#ef4444' : '#222',
+                          fontWeight: 600
+                        }}>
+                          {`${name}: ${(percent * 100).toFixed(0)}%`}
+                        </tspan>
+                      )}
                     >
                       {productivityData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={PRODUCTIVITY_COLORS[index % PRODUCTIVITY_COLORS.length]} />
+                        <Cell
+                          key={`cell-${index}`}
+                          fill={entry.name === 'Productive' ? '#10b981' : entry.name === 'Non-productive' ? '#ef4444' : '#8884d8'}
+                        />
                       ))}
                     </Pie>
                     <Tooltip formatter={(value, name, props) => [props.payload.formattedTime, name]} />

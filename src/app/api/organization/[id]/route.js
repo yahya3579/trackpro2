@@ -9,7 +9,7 @@ async function handleGet(request, { params }) {
     
     // Query the database to get organization data
     const [organizations] = await db.query(
-      'SELECT id, name, email, photo_url FROM organizations WHERE id = ?',
+      'SELECT id, name, email, logo FROM organizations WHERE id = ?',
       [id]
     );
     
@@ -25,7 +25,7 @@ async function handleGet(request, { params }) {
         id: organization.id,
         name: organization.name,
         email: organization.email,
-        photoUrl: organization.photo_url
+        photoUrl: organization.logo
       }
     });
   } catch (error) {
@@ -61,7 +61,7 @@ async function handlePut(request, { params }) {
     
     // Get the updated organization
     const [organizations] = await db.query(
-      'SELECT id, name, email, photo_url FROM organizations WHERE id = ?',
+      'SELECT id, name, email, logo FROM organizations WHERE id = ?',
       [id]
     );
     
@@ -78,7 +78,7 @@ async function handlePut(request, { params }) {
         id: organization.id,
         name: organization.name,
         email: organization.email,
-        photoUrl: organization.photo_url
+        photoUrl: organization.logo
       }
     });
   } catch (error) {
