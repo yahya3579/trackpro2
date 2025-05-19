@@ -139,16 +139,26 @@ export async function POST(request) {
       employee_id: employee.id
     });
     
-    try {
-      // First, get a valid organization ID
-      const [organizations] = await db.query('SELECT id FROM organizations LIMIT 1');
-      
-      if (organizations.length === 0) {
-        throw new Error('No organizations found in the database');
+    // Get the organization ID from the token if available
+    let finalOrganizationId = inviteToken.organization_id;
+    
+    // If no organization ID in token, fallback to getting a valid organization ID
+    if (!finalOrganizationId) {
+      try {
+        const [organizations] = await db.query('SELECT id FROM organizations LIMIT 1');
+        
+        if (organizations.length === 0) {
+          throw new Error('No organizations found in the database');
+        }
+        
+        finalOrganizationId = organizations[0].id;
+      } catch (err) {
+        console.error("Error finding organization:", err);
+        throw new Error('Failed to find a valid organization ID');
       }
-      
-      const organizationId = organizations[0].id;
-      
+    }
+    
+    try {
       // Check if user already exists
       const [existingUser] = await db.query(
         'SELECT * FROM users WHERE email = ?',
@@ -163,13 +173,13 @@ export async function POST(request) {
         // Create user account with the hashed password - let the database auto-generate the ID
         await db.query(
           'INSERT INTO users (email, password, role, organization_id, created_at, updated_at) VALUES (?, ?, ?, ?, NOW(), NOW())',
-          [email, hashedPassword, employeeRole, organizationId]
+          [email, hashedPassword, employeeRole, finalOrganizationId]
         );
       } else {
         // Update existing user
         await db.query(
-          'UPDATE users SET password = ?, role = ?, updated_at = NOW() WHERE email = ?',
-          [hashedPassword, employeeRole, email]
+          'UPDATE users SET password = ?, role = ?, organization_id = ?, updated_at = NOW() WHERE email = ?',
+          [hashedPassword, employeeRole, finalOrganizationId, email]
         );
       }
     } catch (insertError) {
@@ -182,10 +192,10 @@ export async function POST(request) {
       throw insertError;
     }
     
-    // Update employee status to active and set joined_date
+    // Make sure employee also has the organization ID
     await db.query(
-      'UPDATE employees SET status = "active", joined_date = CURDATE() WHERE id = ?',
-      [employee.id]
+      'UPDATE employees SET status = "active", joined_date = CURDATE(), organization_id = ? WHERE id = ?',
+      [finalOrganizationId, employee.id]
     );
     
     // Mark invitation token as used

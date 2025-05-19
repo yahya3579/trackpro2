@@ -21,6 +21,18 @@ PREPARE stmt FROM @sqlstmt;
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 
+-- Add organization_id to employees table if it doesn't exist
+SET @exist := (SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS 
+                WHERE TABLE_NAME = 'employees' 
+                AND COLUMN_NAME = 'organization_id'
+                AND TABLE_SCHEMA = DATABASE());
+SET @sqlstmt := IF(@exist = 0, 
+                   'ALTER TABLE employees ADD COLUMN organization_id INT, ADD CONSTRAINT fk_organization FOREIGN KEY (organization_id) REFERENCES organizations(id)',
+                   'SELECT "Column already exists"');
+PREPARE stmt FROM @sqlstmt;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
 -- Create password_reset_tokens table if not exists
 CREATE TABLE IF NOT EXISTS password_reset_tokens (
   id INT AUTO_INCREMENT PRIMARY KEY,

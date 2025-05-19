@@ -25,6 +25,33 @@ export async function GET(request) {
       }, { status: 401 });
     }
     
+    // Get organization ID based on user role
+    let organizationId = null;
+    
+    if (decodedToken.role === 'organization_admin') {
+      organizationId = decodedToken.id;
+    } else if (decodedToken.id) {
+      // For employees, get their organization ID
+      const [userRecord] = await db.query(
+        'SELECT organization_id FROM users WHERE id = ? OR email = ?',
+        [decodedToken.id, decodedToken.email]
+      );
+      
+      if (userRecord.length > 0) {
+        organizationId = userRecord[0].organization_id;
+      } else {
+        // Try to get it from employees table
+        const [employeeRecord] = await db.query(
+          'SELECT organization_id FROM employees WHERE id = ? OR email = ?',
+          [decodedToken.id, decodedToken.email]
+        );
+        
+        if (employeeRecord.length > 0) {
+          organizationId = employeeRecord[0].organization_id;
+        }
+      }
+    }
+    
     // Check if app_usage table exists
     try {
       const [checkTable] = await db.query('SHOW TABLES LIKE "app_usage"');
@@ -151,10 +178,46 @@ export async function GET(request) {
     
     const queryParams = [];
     
-    // Add filters
+    // Add filters with employee_id as primary filter
     if (employeeId) {
       query += ' AND au.employee_id = ?';
       queryParams.push(employeeId);
+    }
+    // Only add organization filter for organization admins when not filtering by specific employee
+    else if (organizationId && decodedToken.role === 'organization_admin') {
+      // For org admins without specific employee filter, limit to their organization
+      const [orgEmployees] = await db.query(
+        'SELECT id FROM employees WHERE organization_id = ?', 
+        [organizationId]
+      );
+      
+      if (orgEmployees.length > 0) {
+        const employeeIds = orgEmployees.map(e => e.id);
+        query += ` AND au.employee_id IN (${employeeIds.map(() => '?').join(',')})`;
+        queryParams.push(...employeeIds);
+      } else {
+        // No employees in this organization - add a condition that will return no results
+        // but avoid SQL syntax errors
+        query += ' AND 1=0';
+      }
+    }
+    
+    // For regular employees, ensure they can only see their own data
+    if (decodedToken.role !== 'organization_admin' && decodedToken.role !== 'super_admin') {
+      // Clear any previous employeeId condition and rebuild query params array
+      query = query.replace(/AND au\.employee_id = \?/, '');
+      const newParams = [];
+      for (let i = 0; i < queryParams.length; i++) {
+        if (queryParams[i] !== employeeId) {
+          newParams.push(queryParams[i]);
+        }
+      }
+      queryParams.length = 0;
+      queryParams.push(...newParams);
+      
+      // Add filter to only show data for this employee
+      query += ' AND au.employee_id = ?';
+      queryParams.push(decodedToken.id);
     }
     
     if (startDate) {
@@ -184,7 +247,7 @@ export async function GET(request) {
     console.log(`Found ${appUsage.length} app usage records`);
     
     // Get summary by application
-    const summaryQuery = `
+    let summaryQuery = `
       SELECT 
         application_name,
         category,
@@ -193,36 +256,91 @@ export async function GET(request) {
         productive
       FROM app_usage
       WHERE 1=1
-      ${employeeId ? ' AND employee_id = ?' : ''}
-      ${startDate ? ' AND date >= ?' : ''}
-      ${endDate ? ' AND date <= ?' : ''}
-      ${category ? ' AND category = ?' : ''}
-      GROUP BY application_name, productive
-      ORDER BY total_duration DESC
     `;
     
-    const summaryParams = queryParams.filter(p => p !== category); // Remove category from params if it exists
+    // Add filters to ensure consistent results with main query
+    let summaryParams = [];
+    
+    // For regular users, only show their own data
+    if (decodedToken.role !== 'organization_admin' && decodedToken.role !== 'super_admin') {
+      summaryQuery += ' AND employee_id = ?';
+      summaryParams.push(decodedToken.id);
+    } 
+    // For admins with a specific employee selected
+    else if (employeeId) {
+      summaryQuery += ' AND employee_id = ?';
+      summaryParams.push(employeeId);
+    }
+    // For org admins without specific employee selected
+    else if (organizationId && decodedToken.role === 'organization_admin') {
+      const [orgEmployees] = await db.query(
+        'SELECT id FROM employees WHERE organization_id = ?', 
+        [organizationId]
+      );
+      
+      if (orgEmployees.length > 0) {
+        const employeeIds = orgEmployees.map(e => e.id);
+        summaryQuery += ` AND employee_id IN (${employeeIds.map(() => '?').join(',')})`;
+        summaryParams.push(...employeeIds);
+      } else {
+        summaryQuery += ' AND 1=0'; // No results
+      }
+    }
+    
+    if (startDate) {
+      summaryQuery += ' AND date >= ?';
+      summaryParams.push(startDate);
+    }
+    
+    if (endDate) {
+      summaryQuery += ' AND date <= ?';
+      summaryParams.push(endDate);
+    }
+    
     if (category) {
+      summaryQuery += ' AND category = ?';
       summaryParams.push(category);
     }
+    
+    summaryQuery += ' GROUP BY application_name, productive ORDER BY total_duration DESC';
     
     console.log('Executing summary query with params:', summaryParams);
     
     const [appSummary] = await db.query(summaryQuery, summaryParams);
     
-    // Get productivity stats
-    const productivityQuery = `
+    // Get productivity stats with the same filtering approach
+    let productivityQuery = `
       SELECT 
         productive,
         SUM(duration_seconds) as total_duration,
         COUNT(*) as usage_count
       FROM app_usage
       WHERE 1=1
-      ${employeeId ? ' AND employee_id = ?' : ''}
-      ${startDate ? ' AND date >= ?' : ''}
-      ${endDate ? ' AND date <= ?' : ''}
-      GROUP BY productive
     `;
+    
+    // Reuse the same filtering logic as for summary
+    if (decodedToken.role !== 'organization_admin' && decodedToken.role !== 'super_admin') {
+      productivityQuery += ' AND employee_id = ?';
+    } else if (employeeId) {
+      productivityQuery += ' AND employee_id = ?';
+    } else if (organizationId && decodedToken.role === 'organization_admin') {
+      const employeeCount = summaryParams.length - (startDate ? 1 : 0) - (endDate ? 1 : 0) - (category ? 1 : 0);
+      if (employeeCount > 0) {
+        productivityQuery += ` AND employee_id IN (${Array(employeeCount).fill('?').join(',')})`;
+      } else {
+        productivityQuery += ' AND 1=0'; // No results
+      }
+    }
+    
+    if (startDate) {
+      productivityQuery += ' AND date >= ?';
+    }
+    
+    if (endDate) {
+      productivityQuery += ' AND date <= ?';
+    }
+    
+    productivityQuery += ' GROUP BY productive';
     
     const [productivityStats] = await db.query(productivityQuery, summaryParams);
     

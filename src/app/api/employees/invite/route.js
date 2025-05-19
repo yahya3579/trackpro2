@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import db from '@/lib/db';
 import crypto from 'crypto';
 import nodemailer from 'nodemailer';
+import jwt from 'jsonwebtoken';
 
 // Generate secure invitation token
 function generateToken(data) {
@@ -89,6 +90,41 @@ export async function POST(request) {
       }, { status: 401 });
     }
     
+    // Get organization ID from token
+    let organizationId = null;
+    try {
+      // Decode token to get organization ID
+      const decodedToken = jwt.verify(token, 'trackpro-secret-key');
+      
+      // If the decoded token is for an organization admin, use their ID
+      if (decodedToken.role === 'organization_admin') {
+        organizationId = decodedToken.id;
+      } else {
+        // Try to get organization ID from the user's record
+        if (decodedToken.id) {
+          const [userRecord] = await db.query(
+            'SELECT organization_id FROM users WHERE id = ?', 
+            [decodedToken.id]
+          );
+          
+          if (userRecord.length > 0 && userRecord[0].organization_id) {
+            organizationId = userRecord[0].organization_id;
+          }
+        }
+      }
+      
+      // If we still don't have an organization ID, get a default one
+      if (!organizationId) {
+        const [orgRecord] = await db.query('SELECT id FROM organizations LIMIT 1');
+        if (orgRecord.length > 0) {
+          organizationId = orgRecord[0].id;
+        }
+      }
+      
+    } catch (err) {
+      console.error('Error decoding token:', err);
+    }
+    
     // Get admin ID from token or use a default value
     let inviterId = null;
     try {
@@ -148,15 +184,16 @@ export async function POST(request) {
         // Insert the employee into database with 'invited' status
         const [result] = await db.query(
           `INSERT INTO employees 
-           (employee_name, email, role, team_name, id, status) 
-           VALUES (?, ?, ?, ?, ?, ?)`,
+           (employee_name, email, role, team_name, id, status, organization_id) 
+           VALUES (?, ?, ?, ?, ?, ?, ?)`,
           [
             user.name,
             user.email,
             user.role,
             user.teams[0]?.teamName || '', // Use the first team if available
             user.employeeId || null,
-            'invited' // Status explicitly set to 'invited'
+            'invited', // Status explicitly set to 'invited'
+            organizationId // Set the organization ID
           ]
         );
         
@@ -181,7 +218,8 @@ export async function POST(request) {
           name: user.name,
           role: user.role,
           team: user.teams[0]?.teamName || '',
-          type: 'invite'
+          type: 'invite',
+          organization_id: organizationId // Include organization ID in token
         };
         const inviteToken = generateToken(tokenData);
         
@@ -194,15 +232,16 @@ export async function POST(request) {
         
         // Store the token in the database
         await db.query(
-          `INSERT INTO invitation_tokens (token, email, role, team_name, invited_by, created_at, expires_at, used_at)
-           VALUES (?, ?, ?, ?, ?, NOW(), ?, NULL)`,
+          `INSERT INTO invitation_tokens (token, email, role, team_name, invited_by, created_at, expires_at, used_at, organization_id)
+           VALUES (?, ?, ?, ?, ?, NOW(), ?, NULL, ?)`,
           [
             inviteToken,
             user.email, 
             user.role, 
             user.teams[0]?.teamName || '',
             inviterId,
-            expiryDate
+            expiryDate,
+            organizationId // Store organization ID with the token
           ]
         );
         

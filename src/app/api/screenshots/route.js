@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import db from '@/lib/db';
 import path from 'path';
 import fs from 'fs';
+import jwt from 'jsonwebtoken';
 
 // Constants
 const SCREENSHOTS_PUBLIC_PATH = '/screenshots'; // Path relative to the public folder
@@ -30,6 +31,44 @@ export async function GET(request) {
       }, { status: 401 });
     }
     
+    // Decode JWT token to get user information
+    let decodedToken;
+    try {
+      decodedToken = jwt.verify(token, 'trackpro-secret-key');
+    } catch (err) {
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Invalid authentication token' 
+      }, { status: 401 });
+    }
+    
+    // Get organization ID based on user role
+    let organizationId = null;
+    
+    if (decodedToken.role === 'organization_admin') {
+      organizationId = decodedToken.id;
+    } else if (decodedToken.id) {
+      // For employees, get their organization ID
+      const [userRecord] = await db.query(
+        'SELECT organization_id FROM users WHERE id = ? OR email = ?',
+        [decodedToken.id, decodedToken.email]
+      );
+      
+      if (userRecord.length > 0) {
+        organizationId = userRecord[0].organization_id;
+      } else {
+        // Try to get it from employees table
+        const [employeeRecord] = await db.query(
+          'SELECT organization_id FROM employees WHERE id = ? OR email = ?',
+          [decodedToken.id, decodedToken.email]
+        );
+        
+        if (employeeRecord.length > 0) {
+          organizationId = employeeRecord[0].organization_id;
+        }
+      }
+    }
+    
     // Parse query parameters
     const { searchParams } = new URL(request.url);
     const employeeId = searchParams.get('employee_id');
@@ -42,7 +81,7 @@ export async function GET(request) {
     // Build the base query
     let query = `
       SELECT s.id, s.employee_id, s.url, s.timestamp, s.created_at, 
-             e.employee_name, e.email, e.role, e.team_name, e.status
+             e.employee_name, e.email, e.role, e.team_name, e.status, e.organization_id
       FROM screenshots s
       LEFT JOIN employees e ON s.employee_id = e.id
       WHERE 1=1
@@ -50,10 +89,40 @@ export async function GET(request) {
     
     const queryParams = [];
     
+    // Add organization filter if applicable
+    if (organizationId && decodedToken.role !== 'super_admin') {
+      query += ' AND e.organization_id = ?';
+      queryParams.push(organizationId);
+    }
+    
     // Add filters to the query if provided
     if (employeeId) {
       query += ' AND s.employee_id = ?';
       queryParams.push(employeeId);
+      
+      // For employees, ensure they can only see their own data or others in their org
+      if (decodedToken.role !== 'organization_admin' && 
+          decodedToken.role !== 'super_admin' && 
+          employeeId !== decodedToken.id) {
+        // If they're trying to access someone else's screenshots, check that person is in their org
+        const [empCheck] = await db.query(
+          'SELECT id FROM employees WHERE id = ? AND organization_id = ?',
+          [employeeId, organizationId]
+        );
+        
+        if (empCheck.length === 0) {
+          // Not authorized to see this employee's screenshots
+          return NextResponse.json({
+            success: false,
+            error: 'You are not authorized to view this employee\'s screenshots'
+          }, { status: 403 });
+        }
+      }
+    } else if (decodedToken.role !== 'organization_admin' && 
+              decodedToken.role !== 'super_admin') {
+      // Non-admin users without a specific employee request can only see their own screenshots
+      query += ' AND s.employee_id = ?';
+      queryParams.push(decodedToken.id);
     }
     
     if (startDate) {
@@ -76,13 +145,20 @@ export async function GET(request) {
     // Format image URLs for frontend
     const formattedScreenshots = screenshots.map(screenshot => ({
       ...screenshot,
-      url: formatImageUrl(screenshot.url)
+      url: formatImageUrl(screenshot.url),
+      organization_id: screenshot.organization_id // Include organization ID
     }));
     
     // Get total count for pagination
     const [countResult] = await db.query(
-      `SELECT COUNT(*) as total FROM screenshots s WHERE 1=1
+      `SELECT COUNT(*) as total FROM screenshots s 
+       LEFT JOIN employees e ON s.employee_id = e.id
+       WHERE 1=1
+       ${organizationId && decodedToken.role !== 'super_admin' ? ' AND e.organization_id = ?' : ''}
        ${employeeId ? ' AND s.employee_id = ?' : ''}
+       ${(decodedToken.role !== 'organization_admin' && 
+          decodedToken.role !== 'super_admin' && 
+          !employeeId) ? ' AND s.employee_id = ?' : ''}
        ${startDate ? ' AND s.timestamp >= ?' : ''}
        ${endDate ? ' AND s.timestamp <= ?' : ''}`,
       queryParams.slice(0, -2) // Remove limit and offset

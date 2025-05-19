@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import db from '@/lib/db';
+import jwt from 'jsonwebtoken';
 
 // GET - Fetch time tracking records
 export async function GET(request) {
@@ -13,6 +14,44 @@ export async function GET(request) {
       }, { status: 401 });
     }
     
+    // Decode JWT token to get user information
+    let decodedToken;
+    try {
+      decodedToken = jwt.verify(token, 'trackpro-secret-key');
+    } catch (err) {
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Invalid authentication token' 
+      }, { status: 401 });
+    }
+    
+    // Get organization ID based on user role
+    let organizationId = null;
+    
+    if (decodedToken.role === 'organization_admin') {
+      organizationId = decodedToken.id;
+    } else if (decodedToken.id) {
+      // For employees, get their organization ID
+      const [userRecord] = await db.query(
+        'SELECT organization_id FROM users WHERE id = ? OR email = ?',
+        [decodedToken.id, decodedToken.email]
+      );
+      
+      if (userRecord.length > 0) {
+        organizationId = userRecord[0].organization_id;
+      } else {
+        // Try to get it from employees table
+        const [employeeRecord] = await db.query(
+          'SELECT organization_id FROM employees WHERE id = ? OR email = ?',
+          [decodedToken.id, decodedToken.email]
+        );
+        
+        if (employeeRecord.length > 0) {
+          organizationId = employeeRecord[0].organization_id;
+        }
+      }
+    }
+    
     // Get query parameters
     const { searchParams } = new URL(request.url);
     const employeeId = searchParams.get('employee_id');
@@ -21,7 +60,7 @@ export async function GET(request) {
     
     // Build query
     let query = `
-      SELECT tt.*, e.employee_name
+      SELECT tt.*, e.employee_name, e.organization_id
       FROM time_tracking tt
       JOIN employees e ON tt.employee_id = e.id
       WHERE 1=1
@@ -29,10 +68,40 @@ export async function GET(request) {
     
     const queryParams = [];
     
-    // Add filters
+    // Add organization filter if applicable
+    if (organizationId && decodedToken.role !== 'super_admin') {
+      query += ' AND e.organization_id = ?';
+      queryParams.push(organizationId);
+    }
+    
+    // Add filters for employee
     if (employeeId) {
       query += ' AND tt.employee_id = ?';
       queryParams.push(employeeId);
+      
+      // For non-admin users, ensure they can only view their own data or 
+      // data from employees in their organization
+      if (decodedToken.role !== 'organization_admin' && 
+          decodedToken.role !== 'super_admin' && 
+          employeeId !== decodedToken.id) {
+        // Check if this employee is in the same org
+        const [empCheck] = await db.query(
+          'SELECT id FROM employees WHERE id = ? AND organization_id = ?',
+          [employeeId, organizationId]
+        );
+        
+        if (empCheck.length === 0) {
+          return NextResponse.json({
+            success: false,
+            error: 'You are not authorized to view this employee\'s time tracking data'
+          }, { status: 403 });
+        }
+      }
+    } else if (decodedToken.role !== 'organization_admin' && 
+               decodedToken.role !== 'super_admin') {
+      // Non-admin users can only see their own data when not requesting a specific employee
+      query += ' AND tt.employee_id = ?';
+      queryParams.push(decodedToken.id);
     }
     
     if (startDate) {
@@ -78,6 +147,31 @@ export async function POST(request) {
       }, { status: 401 });
     }
     
+    // Decode token to get user information
+    let decodedToken;
+    try {
+      decodedToken = jwt.verify(token, 'trackpro-secret-key');
+    } catch (err) {
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Invalid authentication token' 
+      }, { status: 401 });
+    }
+    
+    // Get organization ID
+    let organizationId = null;
+    if (decodedToken.role === 'organization_admin') {
+      organizationId = decodedToken.id;
+    } else if (decodedToken.id) {
+      const [userRecord] = await db.query(
+        'SELECT organization_id FROM users WHERE id = ?',
+        [decodedToken.id]
+      );
+      if (userRecord.length > 0) {
+        organizationId = userRecord[0].organization_id;
+      }
+    }
+    
     // Get data from request body
     const data = await request.json();
     
@@ -87,6 +181,21 @@ export async function POST(request) {
         success: false, 
         error: 'Employee ID and date are required fields' 
       }, { status: 400 });
+    }
+    
+    // Check if employee belongs to the user's organization
+    if (organizationId && decodedToken.role !== 'super_admin') {
+      const [empCheck] = await db.query(
+        'SELECT id FROM employees WHERE id = ? AND organization_id = ?',
+        [data.employee_id, organizationId]
+      );
+      
+      if (empCheck.length === 0) {
+        return NextResponse.json({
+          success: false,
+          error: 'You are not authorized to create time entries for this employee'
+        }, { status: 403 });
+      }
     }
     
     // Insert new record
