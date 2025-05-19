@@ -69,7 +69,7 @@ export async function GET(request) {
       JOIN 
         leave_types lt ON lb.leave_type_id = lt.id
       WHERE 
-        lb.employee_id = ? AND lb.year = ?
+        lb.employee_id = ? AND lb.year = ? AND lb.organization_id = ?
     `;
     
     const [leaveBalances] = await db.query(query, [employeeId, year]);

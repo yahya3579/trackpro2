@@ -164,35 +164,18 @@ export default function DashboardPage() {
           try {
             const productivityData = await productivityResponse.json();
             
-            // Calculate average productivity for employees with data
-            let empProductivity = [];
-            let totalProductivity = 0;
-            let employeesWithData = 0;
+            // Normalize the productivity rate to ensure it's between 0-100%
+            const normalizedRate = productivityData.overallRate 
+              ? Math.min(Math.max(0, parseFloat(productivityData.overallRate)), 100) 
+              : 0;
             
-            // If we have employee productivity data, use it
-            if (employeeProductivityData && employeeProductivityData.length > 0) {
-              empProductivity = employeeProductivityData;
-              
-              // Calculate average from individual employee data
-              employeeProductivityData.forEach(emp => {
-                if (emp.productivity_rate != null) {
-                  totalProductivity += emp.productivity_rate;
-                  employeesWithData++;
-                }
-              });
-            }
-            
-            // If we don't have per-employee data, use the summary data
-            const avgProductivity = employeesWithData > 0 
-              ? Math.round(totalProductivity / employeesWithData) 
-              : (productivityData.overallRate || 0);
-            
+            // Directly use the data from the productivity-summary API
             setProductivityData({
-              averageProductivity: avgProductivity,
+              averageProductivity: normalizedRate,
               productiveHours: productivityData.productiveHours || 0,
               totalTrackedHours: productivityData.totalHours || 0,
               change: productivityData.weeklyChange || 0,
-              employeeProductivity: empProductivity
+              employeeProductivity: employeeProductivityData || []
             });
           } catch (error) {
             console.error('Error parsing productivity data:', error);
@@ -215,7 +198,6 @@ export default function DashboardPage() {
         
         if (!categoriesResponse.ok) {
           console.error('Error fetching categories:', categoriesResponse.status);
-          // Set fallback data
           setProductivityCategories([
             { name: "Development", value: 40, color: "text-blue-500" },
             { name: "Meetings", value: 25, color: "text-purple-500" },
@@ -249,7 +231,6 @@ export default function DashboardPage() {
             setProductivityCategories(formattedCategories);
           } catch (error) {
             console.error('Error parsing categories data:', error);
-            // Set fallback data
             setProductivityCategories([
               { name: "Development", value: 40, color: "text-blue-500" },
               { name: "Meetings", value: 25, color: "text-purple-500" },
@@ -435,7 +416,7 @@ export default function DashboardPage() {
                     <Skeleton className="h-8 w-16" />
                   ) : (
                     <>
-                      <p className="text-2xl font-bold">{productivityPercentage || 0}%</p>
+                      <p className="text-2xl font-bold">{Math.round(productivityData?.averageProductivity || 0)}%</p>
                       {productivityData?.change ? (
                         <Badge variant="secondary" className={`${productivityData.change > 0 ? 'bg-purple-100 text-purple-700' : 'bg-red-100 text-red-700'}`}>
                           {productivityData.change > 0 ? '+' : ''}{productivityData.change}%
@@ -520,8 +501,8 @@ export default function DashboardPage() {
                           <PieChart>
                             <Pie
                               data={[
-                                { name: 'Productive', value: productiveHours || 0, color: '#10b981' },
-                                { name: 'Non-Productive', value: nonProductiveHours || 0, color: '#f87171' },
+                                { name: 'Productive', value: productivityData?.productiveHours || 0, color: '#10b981' },
+                                { name: 'Non-Productive', value: productivityData?.totalTrackedHours - (productivityData?.productiveHours || 0) || 0, color: '#f87171' },
                               ]}
                               cx="50%"
                               cy="50%"
@@ -541,13 +522,17 @@ export default function DashboardPage() {
                         <div className="absolute inset-0 flex items-center justify-center flex-col pointer-events-none select-none">
                           {hoveredPieIndex === 0 && (
                             <>
-                              <span className="text-5xl font-extrabold text-primary drop-shadow-lg">{productivityPercentage}%</span>
+                              <span className="text-5xl font-extrabold text-primary drop-shadow-lg">
+                                {Math.round(productivityData?.averageProductivity || 0)}%
+                              </span>
                               <span className="text-xs text-muted-foreground mt-1 tracking-wide">Productivity</span>
                             </>
                           )}
                           {hoveredPieIndex === 1 && (
                             <>
-                              <span className="text-5xl font-extrabold text-destructive drop-shadow-lg">{nonProductivePercentage}%</span>
+                              <span className="text-5xl font-extrabold text-destructive drop-shadow-lg">
+                                {100 - Math.round(productivityData?.averageProductivity || 0)}%
+                              </span>
                               <span className="text-xs text-muted-foreground mt-1 tracking-wide">Non-Productive</span>
                             </>
                           )}
@@ -571,7 +556,7 @@ export default function DashboardPage() {
                         </div>
                       </div>
                       {/* Hours Summary */}
-                      <div className="mt-7 flex flex-col gap-3 w-full max-w-xs bg-muted/40 rounded-xl p-4 shadow-inner">
+                      <div className="mt-7 mb-7 flex flex-col gap-3 w-full max-w-xs bg-muted/40 rounded-xl p-4 shadow-inner">
                         <div className="flex items-center justify-between text-sm font-semibold">
                           <span>Productive Hours</span>
                           <span className="text-primary">{productiveHours.toFixed(1)}h</span>

@@ -17,6 +17,7 @@ export async function GET(request) {
     
     // Get query parameters
     const { searchParams } = new URL(request.url);
+    const organizationId = searchParams.get('organization_id');
     const employeeId = searchParams.get('employee_id');
     const status = searchParams.get('status');
     const startDate = searchParams.get('start_date');
@@ -52,12 +53,20 @@ export async function GET(request) {
     
     const queryParams = [];
     
-    // Add filters
-    if (employeeId) {
+    // Add organization filter if provided
+    if (organizationId && employeeId) {
+      // Only fetch leave requests for this employee if they belong to the organization
+      query += ' AND e.organization_id = ? AND lr.employee_id = ?';
+      queryParams.push(organizationId, employeeId);
+    } else if (organizationId) {
+      query += ' AND e.organization_id = ?';
+      queryParams.push(organizationId);
+    } else if (employeeId) {
       query += ' AND lr.employee_id = ?';
       queryParams.push(employeeId);
     }
     
+    // Add filters
     if (status) {
       query += ' AND lr.status = ?';
       queryParams.push(status);
@@ -80,6 +89,9 @@ export async function GET(request) {
     
     // Order by
     query += ' ORDER BY lr.created_at DESC';
+    
+    console.log('Executing leave requests query:', query);
+    console.log('Query params:', queryParams);
     
     // Execute query
     const [leaveRequests] = await db.query(query, queryParams);

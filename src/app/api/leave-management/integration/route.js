@@ -58,7 +58,7 @@ export async function POST(request) {
         // Check if employee has approved leave for this date
         const [existingLeave] = await db.query(
           `SELECT * FROM leave_requests
-           WHERE employee_id = ?
+           WHERE employee_id = ? AND organization_id = ?
            AND status = 'approved'
            AND ? BETWEEN start_date AND end_date`,
           [employee.id, date]

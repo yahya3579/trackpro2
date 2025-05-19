@@ -34,6 +34,7 @@ export async function GET(request) {
       JOIN leave_types lt ON lr.leave_type_id = lt.id
       WHERE lr.status = 'pending'
       ORDER BY lr.created_at DESC
+      WHERE e.organization_id = ?
     `;
     
     // Execute query

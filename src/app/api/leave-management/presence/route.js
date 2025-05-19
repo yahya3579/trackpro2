@@ -26,8 +26,8 @@ export async function POST(request) {
     
     // Get or create presence record for this employee and date
     const [existingRecord] = await db.query(
-      `SELECT * FROM presence_tracking WHERE employee_id = ? AND date = ?`,
-      [data.employee_id, data.date]
+      `SELECT * FROM presence_tracking WHERE employee_id = ? AND date = ? AND organization_id = ?`,
+      [data.employee_id, data.date, data.organization_id]
     );
     
     let presenceId;
@@ -254,6 +254,7 @@ export async function GET(request) {
     const startDate = searchParams.get('start_date');
     const endDate = searchParams.get('end_date');
     const status = searchParams.get('status');
+    const organizationId = searchParams.get('organization_id');
     
     // Build query
     let query = `
@@ -279,7 +280,7 @@ export async function GET(request) {
       WHERE 1=1
     `;
     
-    const queryParams = [];
+    const queryParams = [organizationId];
     
     // Add filters
     if (employeeId) {

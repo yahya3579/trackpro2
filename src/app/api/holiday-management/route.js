@@ -7,9 +7,15 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const year = searchParams.get('year') || new Date().getFullYear();
     const type = searchParams.get('type');
+    const organizationId = searchParams.get('organization_id');
 
-    let query = 'SELECT * FROM holidays WHERE year = ?';
-    let params = [year];
+    let query = 'SELECT * FROM holidays WHERE organization_id = ?';
+    let params = [organizationId];
+
+    if (organizationId) {
+      query += ' AND organization_id = ?';
+      params.push(organizationId);
+    }
 
     if (type) {
       query += ' AND type = ?';
@@ -33,23 +39,26 @@ export async function GET(request) {
 // Add a new holiday
 export async function POST(request) {
   try {
-    const { title, date, type, session, assignedToAll } = await request.json();
+    const { title, date, type, session, assignedToAll, organizationId } = await request.json();
     
     // Validate required fields
-    if (!title || !date || !type) {
+    if (!title || !date || !type || !organizationId) {
       return NextResponse.json(
-        { error: 'Title, date, and type are required' },
+        { error: 'Title, date, type, and organizationId are required' },
         { status: 400 }
       );
     }
 
+    // Extract year from date
+    const year = new Date(date).getFullYear();
+
     const [result] = await db.execute(
-      'INSERT INTO holidays (title, date, type, session, assigned_to_all) VALUES (?, ?, ?, ?, ?)',
-      [title, date, type, session || 'full_day', assignedToAll || false]
+      'INSERT INTO holidays (title, date, year, type, session, assigned_to_all, organization_id) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [title, date, year, type, session || 'full_day', assignedToAll || false, organizationId]
     );
     
     // Get the created holiday
-    const [rows] = await db.execute('SELECT * FROM holidays WHERE id = ?', [result.insertId]);
+    const [rows] = await db.execute('SELECT * FROM holidays WHERE id = ? AND organization_id = ?', [result.insertId, organizationId]);
     
     return NextResponse.json({ 
       message: 'Holiday created successfully',
@@ -77,7 +86,7 @@ export async function DELETE(request) {
       );
     }
 
-    await db.execute('DELETE FROM holidays WHERE id = ?', [id]);
+    await db.execute('DELETE FROM holidays WHERE id = ? AND organization_id = ?', [id, organizationId]);
     
     return NextResponse.json({ message: 'Holiday deleted successfully' });
   } catch (error) {
@@ -107,7 +116,7 @@ export async function PUT(request) {
     );
     
     // Get the updated holiday
-    const [rows] = await db.execute('SELECT * FROM holidays WHERE id = ?', [id]);
+    const [rows] = await db.execute('SELECT * FROM holidays WHERE id = ? AND organization_id = ?', [id, organizationId]);
     
     return NextResponse.json({ 
       message: 'Holiday updated successfully',

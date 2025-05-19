@@ -21,6 +21,13 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const startDate = searchParams.get('start_date');
     const endDate = searchParams.get('end_date');
+    const organizationId = searchParams.get('organization_id');
+    if (!organizationId) {
+      return NextResponse.json({
+        success: false,
+        error: 'organization_id is required'
+      }, { status: 400 });
+    }
     
     // Set default date range if none provided (last 7 days)
     const currentDate = new Date();
@@ -36,88 +43,56 @@ export async function GET(request) {
     const effectiveEndDate = endDate || defaultEndDate;
     
     try {
-      // First get all employees
-      const [employees] = await db.query(
-        `SELECT * FROM employees WHERE status = 'active' OR status = 'activated'`
-      );
-      
-      if (!employees || employees.length === 0) {
-        return NextResponse.json({
-          success: true,
-          message: 'No active employees found',
-          riskUsers: []
-        });
-      }
-      
-      // Then get productivity data for the period
+      // Get productivity and employee data in one query, filtered by organization_id
       const query = `
         SELECT 
-          employee_id,
-          SUM(duration_seconds) as total_seconds,
-          SUM(CASE WHEN productive = 1 THEN duration_seconds ELSE 0 END) as productive_seconds,
-          SUM(CASE WHEN productive = 0 THEN duration_seconds ELSE 0 END) as nonproductive_seconds,
-          COUNT(DISTINCT DATE(date)) as active_days
-        FROM app_usage
-        WHERE date BETWEEN ? AND ?
-        GROUP BY employee_id
+          e.*, 
+          au.employee_id,
+          SUM(au.duration_seconds) as total_seconds,
+          SUM(CASE WHEN au.productive = 1 THEN au.duration_seconds ELSE 0 END) as productive_seconds,
+          SUM(CASE WHEN au.productive = 0 THEN au.duration_seconds ELSE 0 END) as nonproductive_seconds,
+          COUNT(DISTINCT DATE(au.date)) as active_days
+        FROM employees e
+        LEFT JOIN app_usage au ON e.id = au.employee_id
+        WHERE (e.status = 'active' OR e.status = 'activated')
+          AND e.organization_id = ?
+          AND (au.date BETWEEN ? AND ? OR au.date IS NULL)
+        GROUP BY e.id
       `;
-      
-      const [productivityData] = await db.query(query, [effectiveStartDate, effectiveEndDate]);
-      
+      const [productivityData] = await db.query(query, [organizationId, effectiveStartDate, effectiveEndDate]);
+
       // Calculate risk metrics and identify risky users
       const riskUsers = [];
       
-      for (const employee of employees) {
-        const employeeProductivity = productivityData.find(p => p.employee_id === employee.id);
-        
-        if (!employeeProductivity) {
-          // No activity data is itself risky - add employee with low activity risk
-          riskUsers.push({
-            ...employee,
-            risk_status: 'high',
-            risk_factors: ['low_work_time'],
-            avg_daily_hours: 0,
-            nonproductive_hours: 0,
-            total_hours: 0,
-            productivity_rate: 0,
-            last_active: null
-          });
-          continue;
-        }
-        
-        // Calculate metrics
-        const totalHours = employeeProductivity.total_seconds / 3600;
-        const productiveHours = employeeProductivity.productive_seconds / 3600;
-        const nonproductiveHours = employeeProductivity.nonproductive_seconds / 3600;
-        const activeDays = employeeProductivity.active_days || 1;
-        const avgDailyHours = totalHours / (activeDays || 7); // Use recorded active days or default to 7
-        
-        // Calculate productivity rate
-        const productivityRate = employeeProductivity.total_seconds > 0 
-          ? (employeeProductivity.productive_seconds / employeeProductivity.total_seconds) * 100 
+      for (const row of productivityData) {
+        // row contains all employee fields and productivity data
+        const totalSeconds = row.total_seconds || 0;
+        const productiveSeconds = row.productive_seconds || 0;
+        const nonproductiveSeconds = row.nonproductive_seconds || 0;
+        const activeDays = row.active_days || 1;
+
+        const totalHours = totalSeconds / 3600;
+        const productiveHours = productiveSeconds / 3600;
+        const nonproductiveHours = nonproductiveSeconds / 3600;
+        const avgDailyHours = totalHours / (activeDays || 7);
+
+        const productivityRate = totalSeconds > 0 
+          ? (productiveSeconds / totalSeconds) * 100 
           : 0;
-        
-        // Determine risk factors
+
         const riskFactors = [];
-        
-        if (avgDailyHours < 1) {
-          riskFactors.push('low_work_time');
-        }
-        
-        if (nonproductiveHours > 3) {
-          riskFactors.push('high_nonproductive');
-        }
-        
-        // Only add if user has risk factors
+        if (avgDailyHours < 1) riskFactors.push('low_work_time');
+        if (nonproductiveHours > 3) riskFactors.push('high_nonproductive');
+
         if (riskFactors.length > 0) {
           // Get last active time from recent app_usage
           const [lastActiveResult] = await db.query(
             `SELECT MAX(date) as last_active FROM app_usage WHERE employee_id = ?`,
-            [employee.id]
+            [row.id]
           );
-          
+
           riskUsers.push({
-            ...employee,
+            ...row,
             risk_status: 'high',
             risk_factors: riskFactors,
             avg_daily_hours: avgDailyHours,
