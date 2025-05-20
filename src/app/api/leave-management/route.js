@@ -15,9 +15,36 @@ export async function GET(request) {
       }, { status: 401 });
     }
     
+    // Decode token to get user information
+    let decodedToken;
+    try {
+      decodedToken = jwt.verify(token, 'trackpro-secret-key');
+    } catch (err) {
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Invalid authentication token' 
+      }, { status: 401 });
+    }
+
+    // Determine user's organization_id
+    let organizationId = null;
+    if (decodedToken.role === 'organization_admin') {
+      organizationId = decodedToken.id;
+    } else {
+      const [employee] = await db.query('SELECT organization_id FROM employees WHERE id = ?', [decodedToken.id]);
+      if (employee.length > 0) {
+        organizationId = employee[0].organization_id;
+      }
+    }
+    if (!organizationId) {
+      return NextResponse.json({
+        success: false,
+        error: 'Could not determine user organization.'
+      }, { status: 403 });
+    }
+
     // Get query parameters
     const { searchParams } = new URL(request.url);
-    const organizationId = searchParams.get('organization_id');
     const employeeId = searchParams.get('employee_id');
     const status = searchParams.get('status');
     const startDate = searchParams.get('start_date');
@@ -48,57 +75,39 @@ export async function GET(request) {
       JOIN employees e ON lr.employee_id = e.id
       JOIN leave_types lt ON lr.leave_type_id = lt.id
       LEFT JOIN employees a ON lr.approved_by = a.id
-      WHERE 1=1
+      WHERE e.organization_id = ?
     `;
     
-    const queryParams = [];
+    const queryParams = [organizationId];
     
-    // Add organization filter if provided
-    if (organizationId && employeeId) {
-      // Only fetch leave requests for this employee if they belong to the organization
-      query += ' AND e.organization_id = ? AND lr.employee_id = ?';
-      queryParams.push(organizationId, employeeId);
-    } else if (organizationId) {
-      query += ' AND e.organization_id = ?';
-      queryParams.push(organizationId);
-    } else if (employeeId) {
+    // Add filters
+    if (employeeId) {
       query += ' AND lr.employee_id = ?';
       queryParams.push(employeeId);
     }
-    
-    // Add filters
     if (status) {
       query += ' AND lr.status = ?';
       queryParams.push(status);
     }
-    
     if (startDate) {
       query += ' AND lr.start_date >= ?';
       queryParams.push(startDate);
     }
-    
     if (endDate) {
       query += ' AND lr.end_date <= ?';
       queryParams.push(endDate);
     }
-    
     if (leaveTypeId) {
       query += ' AND lr.leave_type_id = ?';
       queryParams.push(leaveTypeId);
     }
-    
     // Order by
     query += ' ORDER BY lr.created_at DESC';
     
-    console.log('Executing leave requests query:', query);
-    console.log('Query params:', queryParams);
-    
     // Execute query
     const [leaveRequests] = await db.query(query, queryParams);
-    
     // Get leave types
     const [leaveTypes] = await db.query('SELECT * FROM leave_types');
-    
     // Return data
     return NextResponse.json({ 
       success: true, 
@@ -141,6 +150,29 @@ export async function POST(request) {
     
     // Get data from request body
     const data = await request.json();
+    
+    // Determine user's organization_id
+    let userOrgId = null;
+    if (decodedToken.role === 'organization_admin') {
+      userOrgId = decodedToken.id;
+    } else {
+      const [employee] = await db.query('SELECT organization_id FROM employees WHERE id = ?', [decodedToken.id]);
+      if (employee.length > 0) {
+        userOrgId = employee[0].organization_id;
+      }
+    }
+    if (!userOrgId) {
+      return NextResponse.json({
+        success: false,
+        error: 'Could not determine user organization.'
+      }, { status: 403 });
+    }
+    
+    // Get organization_id for employee_id in body
+    const [targetEmployee] = await db.query('SELECT organization_id FROM employees WHERE id = ?', [data.employee_id]);
+    if (targetEmployee.length === 0 || targetEmployee[0].organization_id !== userOrgId) {
+      return NextResponse.json({ success: false, error: 'You are not authorized to create leave requests for this employee' }, { status: 403 });
+    }
     
     // Get employee ID from token
     const { employeeId, error } = await getEmployeeIdFromToken(decodedToken);

@@ -56,9 +56,12 @@ export default function HolidayManagementPage() {
   const fetchHolidays = async () => {
     try {
       setLoading(true);
+      const token = localStorage.getItem("token");
       let url = `/api/holiday-management?year=${selectedYear}`;
       if (selectedType && selectedType !== 'all') url += `&type=${selectedType}`;
-      const res = await fetch(url);
+      const res = await fetch(url, {
+        headers: { "x-auth-token": token }
+      });
       const data = await res.json();
       setHolidays(res.ok ? data.holidays || [] : []);
     } catch (err) {
@@ -95,10 +98,11 @@ export default function HolidayManagementPage() {
 
   const handleAddHoliday = async () => {
     try {
+      const token = localStorage.getItem("token");
       const payload = { ...formData, date: format(formData.date, "yyyy-MM-dd") };
       const res = await fetch("/api/holiday-management", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "x-auth-token": token },
         body: JSON.stringify(payload),
       });
       if (res.ok) fetchHolidays();
