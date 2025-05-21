@@ -376,72 +376,90 @@ export async function POST(request) {
     }
     
     // Get data from request body
-    const data = await request.json();
+    const body = await request.json();
+    // Support both single object and array
+    const activities = Array.isArray(body) ? body : [body];
+    const results = [];
     
-    // Validate required fields
-    if (!data.employee_id || !data.application_name || !data.start_time) {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'Employee ID, application name, and start time are required fields' 
-      }, { status: 400 });
-    }
-    
-    // Calculate duration if end_time is provided
-    let durationSeconds = data.duration_seconds || 0;
-    if (data.end_time && !durationSeconds) {
-      const startTime = new Date(data.start_time);
-      const endTime = new Date(data.end_time);
-      durationSeconds = Math.round((endTime - startTime) / 1000);
-    }
-    
-    // Determine app category (can be enhanced with a more comprehensive app categorization system)
-    let category = data.category || 'other';
-    if (!data.category) {
-      const appLower = data.application_name.toLowerCase();
-      if (appLower.includes('chrome') || appLower.includes('firefox') || appLower.includes('edge') || appLower.includes('safari')) {
-        category = 'browser';
-      } else if (appLower.includes('word') || appLower.includes('excel') || appLower.includes('powerpoint') || appLower.includes('office')) {
-        category = 'office';
-      } else if (appLower.includes('vscode') || appLower.includes('intellij') || appLower.includes('eclipse') || appLower.includes('sublime')) {
-        category = 'development';
-      } else if (appLower.includes('photoshop') || appLower.includes('illustrator') || appLower.includes('figma') || appLower.includes('sketch')) {
-        category = 'design';
-      } else if (appLower.includes('slack') || appLower.includes('teams') || appLower.includes('zoom') || appLower.includes('meet')) {
-        category = 'communication';
+    for (const data of activities) {
+      try {
+        // Validate required fields
+        if (!data.employee_id || !data.application_name || !data.start_time) {
+          results.push({ 
+            success: false, 
+            error: 'Employee ID, application name, and start time are required fields',
+            employee_id: data.employee_id
+          });
+          continue;
+        }
+        // Calculate duration if end_time is provided
+        let durationSeconds = data.duration_seconds || 0;
+        if (data.end_time && !durationSeconds) {
+          const startTime = new Date(data.start_time);
+          const endTime = new Date(data.end_time);
+          durationSeconds = Math.round((endTime - startTime) / 1000);
+        }
+        // Determine app category (can be enhanced with a more comprehensive app categorization system)
+        let category = data.category || 'other';
+        if (!data.category) {
+          const appLower = data.application_name.toLowerCase();
+          if (appLower.includes('chrome') || appLower.includes('firefox') || appLower.includes('edge') || appLower.includes('safari')) {
+            category = 'browser';
+          } else if (appLower.includes('word') || appLower.includes('excel') || appLower.includes('powerpoint') || appLower.includes('office')) {
+            category = 'office';
+          } else if (appLower.includes('vscode') || appLower.includes('intellij') || appLower.includes('eclipse') || appLower.includes('sublime')) {
+            category = 'development';
+          } else if (appLower.includes('photoshop') || appLower.includes('illustrator') || appLower.includes('figma') || appLower.includes('sketch')) {
+            category = 'design';
+          } else if (appLower.includes('slack') || appLower.includes('teams') || appLower.includes('zoom') || appLower.includes('meet')) {
+            category = 'communication';
+          }
+        }
+        // Get date from start_time if not provided
+        const date = data.date || new Date(data.start_time).toISOString().split('T')[0];
+        // Insert new record
+        const [result] = await db.query(
+          `INSERT INTO app_usage (
+            employee_id, application_name, window_title, url, category,
+            start_time, end_time, duration_seconds, date, productive,
+            created_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
+          [
+            data.employee_id,
+            data.application_name,
+            data.window_title || null,
+            data.url || null,
+            category,
+            data.start_time,
+            data.end_time || null,
+            durationSeconds,
+            date,
+            data.productive || 0, // 0 for unproductive, 1 for productive
+          ]
+        );
+        results.push({ 
+          success: true, 
+          message: 'Activity record created successfully',
+          id: result.insertId,
+          employee_id: data.employee_id
+        });
+      } catch (error) {
+        results.push({
+          success: false,
+          error: 'Failed to create activity record',
+          message: error.message,
+          employee_id: data.employee_id
+        });
       }
     }
-    
-    // Get date from start_time if not provided
-    const date = data.date || new Date(data.start_time).toISOString().split('T')[0];
-    
-    // Insert new record
-    const [result] = await db.query(
-      `INSERT INTO app_usage (
-        employee_id, application_name, window_title, url, category,
-        start_time, end_time, duration_seconds, date, productive,
-        created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
-      [
-        data.employee_id,
-        data.application_name,
-        data.window_title || null,
-        data.url || null,
-        category,
-        data.start_time,
-        data.end_time || null,
-        durationSeconds,
-        date,
-        data.productive || 0, // 0 for unproductive, 1 for productive
-      ]
-    );
-    
-    // Return success response
-    return NextResponse.json({ 
-      success: true, 
-      message: 'Activity record created successfully',
-      id: result.insertId
+    // If only one activity was sent, return a single object for backward compatibility
+    if (!Array.isArray(body)) {
+      return NextResponse.json(results[0]);
+    }
+    return NextResponse.json({
+      success: results.every(r => r.success),
+      results
     });
-    
   } catch (error) {
     console.error('Error creating activity record:', error);
     return NextResponse.json({ 

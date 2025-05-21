@@ -125,7 +125,7 @@ export async function GET(request) {
   }
 }
 
-// POST - Create a new leave request
+// POST - Create a new leave request (supports multiple requests)
 export async function POST(request) {
   try {
     // Get token from header
@@ -149,7 +149,10 @@ export async function POST(request) {
     }
     
     // Get data from request body
-    const data = await request.json();
+    const body = await request.json();
+    // Support both single object and array
+    const requests = Array.isArray(body) ? body : [body];
+    const results = [];
     
     // Determine user's organization_id
     let userOrgId = null;
@@ -168,120 +171,106 @@ export async function POST(request) {
       }, { status: 403 });
     }
     
-    // Get organization_id for employee_id in body
-    const [targetEmployee] = await db.query('SELECT organization_id FROM employees WHERE id = ?', [data.employee_id]);
-    if (targetEmployee.length === 0 || targetEmployee[0].organization_id !== userOrgId) {
-      return NextResponse.json({ success: false, error: 'You are not authorized to create leave requests for this employee' }, { status: 403 });
-    }
-    
-    // Get employee ID from token
-    const { employeeId, error } = await getEmployeeIdFromToken(decodedToken);
-    
-    if (!employeeId) {
-      return NextResponse.json({ 
-        success: false, 
-        error: error || 'Could not identify employee from token'
-      }, { status: 400 });
-    }
-    
-    // Use the validated employee ID
-    data.employee_id = employeeId;
-    
-    // Validate required fields
-    if (!data.leave_type_id || !data.start_date || !data.end_date || !data.total_days) {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'Leave type, start date, end date, and total days are required fields' 
-      }, { status: 400 });
-    }
-    
-    // Check for overlapping leave requests
-    const [overlappingRequests] = await db.query(
-      `SELECT * FROM leave_requests 
-       WHERE employee_id = ? 
-       AND status IN ('pending', 'approved') 
-       AND ((start_date <= ? AND end_date >= ?) OR 
-            (start_date <= ? AND end_date >= ?) OR
-            (start_date >= ? AND end_date <= ?))`,
-      [
-        data.employee_id, 
-        data.end_date, data.start_date,
-        data.start_date, data.start_date,
-        data.start_date, data.end_date
-      ]
-    );
-    
-    if (overlappingRequests.length > 0) {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'You already have an overlapping leave request for the selected dates' 
-      }, { status: 400 });
-    }
-    
-    // Check leave balance
-    const [leaveBalance] = await db.query(
-      `SELECT * FROM leave_balances 
-       WHERE employee_id = ? AND leave_type_id = ? AND year = YEAR(?)`,
-      [data.employee_id, data.leave_type_id, data.start_date]
-    );
-    
-    // If no balance record exists, create one with default values
-    if (leaveBalance.length === 0) {
-      // Get default entitlement for the leave type
-      const [leaveType] = await db.query(
-        `SELECT * FROM leave_types WHERE id = ?`,
-        [data.leave_type_id]
-      );
-      
-      if (leaveType.length === 0) {
-        return NextResponse.json({ 
-          success: false, 
-          error: 'Invalid leave type' 
-        }, { status: 400 });
+    for (const data of requests) {
+      // Get organization_id for employee_id in body
+      const [targetEmployee] = await db.query('SELECT organization_id FROM employees WHERE id = ?', [data.employee_id]);
+      if (targetEmployee.length === 0 || targetEmployee[0].organization_id !== userOrgId) {
+        results.push({ success: false, error: 'You are not authorized to create leave requests for this employee', employee_id: data.employee_id });
+        continue;
       }
-      
-      // Default annual entitlement
-      const defaultEntitlement = leaveType[0].is_paid ? 20 : 0; // 20 days for paid leave types
-      
-      // Create new balance record
-      await db.query(
-        `INSERT INTO leave_balances 
-         (employee_id, leave_type_id, year, total_entitled, used, remaining) 
-         VALUES (?, ?, YEAR(?), ?, 0, ?)`,
-        [data.employee_id, data.leave_type_id, data.start_date, defaultEntitlement, defaultEntitlement]
+      // Get employee ID from token
+      const { employeeId, error } = await getEmployeeIdFromToken(decodedToken);
+      if (!employeeId) {
+        results.push({ success: false, error: error || 'Could not identify employee from token', employee_id: data.employee_id });
+        continue;
+      }
+      // Use the validated employee ID
+      data.employee_id = employeeId;
+      // Validate required fields
+      if (!data.leave_type_id || !data.start_date || !data.end_date || !data.total_days) {
+        results.push({ success: false, error: 'Leave type, start date, end date, and total days are required fields', employee_id: data.employee_id });
+        continue;
+      }
+      // Check for overlapping leave requests
+      const [overlappingRequests] = await db.query(
+        `SELECT * FROM leave_requests 
+         WHERE employee_id = ? 
+         AND status IN ('pending', 'approved') 
+         AND ((start_date <= ? AND end_date >= ?) OR 
+              (start_date <= ? AND end_date >= ?) OR
+              (start_date >= ? AND end_date <= ?))`,
+        [
+          data.employee_id, 
+          data.end_date, data.start_date,
+          data.start_date, data.start_date,
+          data.start_date, data.end_date
+        ]
       );
-    } else {
-      // Check if employee has enough balance
-      if (leaveBalance[0].remaining < data.total_days && leaveBalance[0].is_paid) {
-        return NextResponse.json({ 
-          success: false, 
-          error: `Insufficient leave balance. Available: ${leaveBalance[0].remaining} days, Requested: ${data.total_days} days` 
-        }, { status: 400 });
+      if (overlappingRequests.length > 0) {
+        results.push({ success: false, error: 'You already have an overlapping leave request for the selected dates', employee_id: data.employee_id });
+        continue;
+      }
+      // Check leave balance
+      const [leaveBalance] = await db.query(
+        `SELECT * FROM leave_balances 
+         WHERE employee_id = ? AND leave_type_id = ? AND year = YEAR(?)`,
+        [data.employee_id, data.leave_type_id, data.start_date]
+      );
+      // If no balance record exists, create one with default values
+      if (leaveBalance.length === 0) {
+        // Get default entitlement for the leave type
+        const [leaveType] = await db.query(
+          `SELECT * FROM leave_types WHERE id = ?`,
+          [data.leave_type_id]
+        );
+        if (leaveType.length === 0) {
+          results.push({ success: false, error: 'Invalid leave type', employee_id: data.employee_id });
+          continue;
+        }
+        // Default annual entitlement
+        const defaultEntitlement = leaveType[0].is_paid ? 20 : 0; // 20 days for paid leave types
+        // Create new balance record
+        await db.query(
+          `INSERT INTO leave_balances 
+           (employee_id, leave_type_id, year, total_entitled, used, remaining) 
+           VALUES (?, ?, YEAR(?), ?, 0, ?)`,
+          [data.employee_id, data.leave_type_id, data.start_date, defaultEntitlement, defaultEntitlement]
+        );
+      } else {
+        // Check if employee has enough balance
+        if (leaveBalance[0].remaining < data.total_days && leaveBalance[0].is_paid) {
+          results.push({ success: false, error: `Insufficient leave balance. Available: ${leaveBalance[0].remaining} days, Requested: ${data.total_days} days`, employee_id: data.employee_id });
+          continue;
+        }
+      }
+      // Insert new leave request
+      try {
+        const [result] = await db.query(
+          `INSERT INTO leave_requests 
+           (employee_id, leave_type_id, start_date, end_date, status, total_days, reason) 
+           VALUES (?, ?, ?, ?, 'pending', ?, ?)`,
+          [
+            data.employee_id,
+            data.leave_type_id,
+            data.start_date,
+            data.end_date,
+            data.total_days,
+            data.reason || null
+          ]
+        );
+        results.push({ success: true, message: 'Leave request created successfully', id: result.insertId, employee_id: data.employee_id });
+      } catch (insertError) {
+        results.push({ success: false, error: 'Failed to create leave request', message: insertError.message, employee_id: data.employee_id });
       }
     }
-    
-    // Insert new leave request
-    const [result] = await db.query(
-      `INSERT INTO leave_requests 
-       (employee_id, leave_type_id, start_date, end_date, status, total_days, reason) 
-       VALUES (?, ?, ?, ?, 'pending', ?, ?)`,
-      [
-        data.employee_id,
-        data.leave_type_id,
-        data.start_date,
-        data.end_date,
-        data.total_days,
-        data.reason || null
-      ]
-    );
-    
-    // Return success response
-    return NextResponse.json({ 
-      success: true, 
-      message: 'Leave request created successfully',
-      id: result.insertId
+    // If only one request was sent, return a single object for backward compatibility
+    if (!Array.isArray(body)) {
+      return NextResponse.json(results[0]);
+    }
+    return NextResponse.json({
+      success: results.every(r => r.success),
+      results
     });
-    
   } catch (error) {
     console.error('Error creating leave request:', error);
     return NextResponse.json({ 

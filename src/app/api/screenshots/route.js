@@ -188,7 +188,7 @@ export async function GET(request) {
   }
 }
 
-// POST endpoint to create a new screenshot
+// POST endpoint to create a new screenshot (supports multiple screenshots)
 export async function POST(request) {
   try {
     // Get token from header
@@ -201,50 +201,73 @@ export async function POST(request) {
     }
     
     // Get the request body
-    const { employee_id, url, timestamp } = await request.json();
-    
-    // Validate required fields
-    if (!employee_id || !url) {
-      return NextResponse.json({
-        success: false,
-        error: 'Employee ID and URL are required'
-      }, { status: 400 });
+    const body = await request.json();
+    // Support both single object and array
+    const screenshots = Array.isArray(body) ? body : [body];
+
+    const results = [];
+    for (const screenshot of screenshots) {
+      const { employee_id, url, timestamp } = screenshot;
+      // Validate required fields
+      if (!employee_id || !url) {
+        results.push({
+          success: false,
+          error: 'Employee ID and URL are required',
+          employee_id,
+          url
+        });
+        continue;
+      }
+      // Check if employee exists
+      const [employees] = await db.query(
+        'SELECT id FROM employees WHERE id = ?',
+        [employee_id]
+      );
+      if (employees.length === 0) {
+        results.push({
+          success: false,
+          error: 'Employee not found',
+          employee_id,
+          url
+        });
+        continue;
+      }
+      // Use current timestamp if not provided
+      const screenshotTimestamp = timestamp || new Date().toISOString();
+      // Save the URL (which might be a path to a file in the public folder)
+      const imageUrl = url;
+      // Insert the screenshot into the database
+      try {
+        const [result] = await db.query(
+          `INSERT INTO screenshots (employee_id, url, timestamp, created_at)
+           VALUES (?, ?, ?, NOW())`,
+          [employee_id, imageUrl, screenshotTimestamp]
+        );
+        results.push({
+          success: true,
+          message: 'Screenshot created successfully',
+          screenshot_id: result.insertId,
+          url: formatImageUrl(imageUrl),
+          employee_id
+        });
+      } catch (insertError) {
+        results.push({
+          success: false,
+          error: 'Failed to insert screenshot',
+          message: insertError.message,
+          employee_id,
+          url
+        });
+      }
     }
-    
-    // Check if employee exists
-    const [employees] = await db.query(
-      'SELECT id FROM employees WHERE id = ?',
-      [employee_id]
-    );
-    
-    if (employees.length === 0) {
-      return NextResponse.json({
-        success: false,
-        error: 'Employee not found'
-      }, { status: 404 });
+    // If only one screenshot was sent, return a single object for backward compatibility
+    if (!Array.isArray(body)) {
+      return NextResponse.json(results[0]);
     }
-    
-    // Use current timestamp if not provided
-    const screenshotTimestamp = timestamp || new Date().toISOString();
-    
-    // Save the URL (which might be a path to a file in the public folder)
-    // For uploaded files, url would be the path where it was saved
-    const imageUrl = url;
-    
-    // Insert the screenshot into the database
-    const [result] = await db.query(
-      `INSERT INTO screenshots (employee_id, url, timestamp, created_at)
-       VALUES (?, ?, ?, NOW())`,
-      [employee_id, imageUrl, screenshotTimestamp]
-    );
-    
     return NextResponse.json({
-      success: true,
-      message: 'Screenshot created successfully',
-      screenshot_id: result.insertId,
-      url: formatImageUrl(imageUrl)
+      success: results.every(r => r.success),
+      results
     });
-    
   } catch (error) {
     console.error('Error creating screenshot:', error);
     return NextResponse.json({ 

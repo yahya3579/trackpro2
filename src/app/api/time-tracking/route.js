@@ -135,7 +135,7 @@ export async function GET(request) {
   }
 }
 
-// POST - Create a new time tracking entry
+// POST - Create a new time tracking entry (supports multiple entries)
 export async function POST(request) {
   try {
     // Get token from header
@@ -173,56 +173,80 @@ export async function POST(request) {
     }
     
     // Get data from request body
-    const data = await request.json();
-    
-    // Validate required fields
-    if (!data.employee_id || !data.date) {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'Employee ID and date are required fields' 
-      }, { status: 400 });
-    }
-    
-    // Check if employee belongs to the user's organization
-    if (organizationId && decodedToken.role !== 'super_admin') {
-      const [empCheck] = await db.query(
-        'SELECT id FROM employees WHERE id = ? AND organization_id = ?',
-        [data.employee_id, organizationId]
-      );
-      
-      if (empCheck.length === 0) {
-        return NextResponse.json({
+    const body = await request.json();
+    // Support both single object and array
+    const records = Array.isArray(body) ? body : [body];
+    const results = [];
+    for (const data of records) {
+      // Validate required fields
+      if (!data.employee_id || !data.date) {
+        results.push({ 
+          success: false, 
+          error: 'Employee ID and date are required fields',
+          employee_id: data.employee_id,
+          date: data.date
+        });
+        continue;
+      }
+      // Check if employee belongs to the user's organization
+      if (organizationId && decodedToken.role !== 'organization_admin') {
+        const [empCheck] = await db.query(
+          'SELECT id FROM employees WHERE id = ? AND organization_id = ?',
+          [data.employee_id, organizationId]
+        );
+        if (empCheck.length === 0) {
+          results.push({
+            success: false,
+            error: 'You are not authorized to create time entries for this employee',
+            employee_id: data.employee_id,
+            date: data.date
+          });
+          continue;
+        }
+      }
+      // Insert new record
+      try {
+        const [result] = await db.query(
+          `INSERT INTO time_tracking (
+            employee_id, date, clock_in, clock_out, total_hours, active_time, 
+            break_time, status, created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+          [
+            data.employee_id,
+            data.date,
+            data.clock_in || null,
+            data.clock_out || null,
+            data.total_hours || 0,
+            data.active_time || 0,
+            data.break_time || 0,
+            data.status || 'present',
+          ]
+        );
+        results.push({
+          success: true,
+          message: 'Time tracking entry created successfully',
+          id: result.insertId,
+          employee_id: data.employee_id,
+          date: data.date
+        });
+      } catch (insertError) {
+        results.push({
           success: false,
-          error: 'You are not authorized to create time entries for this employee'
-        }, { status: 403 });
+          error: 'Failed to create time tracking entry',
+          message: insertError.message,
+          employee_id: data.employee_id,
+          date: data.date
+        });
       }
     }
-    
-    // Insert new record
-    const [result] = await db.query(
-      `INSERT INTO time_tracking (
-        employee_id, date, clock_in, clock_out, total_hours, active_time, 
-        break_time, status, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
-      [
-        data.employee_id,
-        data.date,
-        data.clock_in || null,
-        data.clock_out || null,
-        data.total_hours || 0,
-        data.active_time || 0,
-        data.break_time || 0,
-        data.status || 'present',
-      ]
-    );
-    
-    // Return success response
-    return NextResponse.json({ 
-      success: true, 
-      message: 'Time tracking entry created successfully',
-      id: result.insertId
+    // If only one record was sent, return a single object for backward compatibility
+    if (!Array.isArray(body)) {
+      return NextResponse.json(results[0]);
+    }
+    return NextResponse.json({
+      success: results.every(r => r.success),
+      results
     });
-    
   } catch (error) {
     console.error('Error creating time tracking entry:', error);
     return NextResponse.json({ 
