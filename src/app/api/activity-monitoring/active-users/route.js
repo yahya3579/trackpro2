@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import db from '@/lib/db';
+import jwt from 'jsonwebtoken';
 
 // GET - Fetch count of active users
 export async function GET(request) {
@@ -11,6 +12,44 @@ export async function GET(request) {
         success: false, 
         error: 'Authorization token is required' 
       }, { status: 401 });
+    }
+    
+    // Decode JWT token to get user information
+    let decodedToken;
+    try {
+      decodedToken = jwt.verify(token, 'trackpro-secret-key');
+    } catch (err) {
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Invalid authentication token' 
+      }, { status: 401 });
+    }
+    // Get organization ID based on user role
+    let organizationId = null;
+    if (decodedToken.role === 'organization_admin') {
+      organizationId = decodedToken.id;
+    } else if (decodedToken.id) {
+      const [userRecord] = await db.query(
+        'SELECT organization_id FROM users WHERE id = ? OR email = ?',
+        [decodedToken.id, decodedToken.email]
+      );
+      if (userRecord.length > 0) {
+        organizationId = userRecord[0].organization_id;
+      } else {
+        const [employeeRecord] = await db.query(
+          'SELECT organization_id FROM employees WHERE id = ? OR email = ?',
+          [decodedToken.id, decodedToken.email]
+        );
+        if (employeeRecord.length > 0) {
+          organizationId = employeeRecord[0].organization_id;
+        }
+      }
+    }
+    if (!organizationId) {
+      return NextResponse.json({
+        success: false,
+        error: 'Could not determine organization for user.'
+      }, { status: 403 });
     }
     
     // Get query parameters
@@ -50,7 +89,8 @@ export async function GET(request) {
         try {
           const [activeEmployees] = await db.query(
             `SELECT COUNT(*) as count FROM employees 
-             WHERE status = 'active' OR status = 'activated'`
+             WHERE (status = 'active' OR status = 'activated') AND organization_id = ?`,
+            [organizationId]
           );
           return NextResponse.json({
             success: true,
@@ -72,14 +112,15 @@ export async function GET(request) {
     
     // Get count of active users based on recent app usage
     const query = `
-      SELECT COUNT(DISTINCT employee_id) as activeCount
-      FROM app_usage
-      WHERE created_at >= ?
+      SELECT COUNT(DISTINCT au.employee_id) as activeCount
+      FROM app_usage au
+      LEFT JOIN employees e ON au.employee_id = e.id
+      WHERE au.created_at >= ? AND e.organization_id = ?
     `;
     
     try {
       // Execute query
-      const [result] = await db.query(query, [formattedTimeThreshold]);
+      const [result] = await db.query(query, [formattedTimeThreshold, organizationId]);
       const activeCount = result[0].activeCount || 0;
       
       // If no active users found in app usage, fall back to employee status
@@ -87,7 +128,8 @@ export async function GET(request) {
         try {
           const [activeEmployees] = await db.query(
             `SELECT COUNT(*) as count FROM employees 
-             WHERE status = 'active' OR status = 'activated'`
+             WHERE (status = 'active' OR status = 'activated') AND organization_id = ?`,
+            [organizationId]
           );
           return NextResponse.json({
             success: true,
@@ -119,7 +161,8 @@ export async function GET(request) {
       try {
         const [activeEmployees] = await db.query(
           `SELECT COUNT(*) as count FROM employees 
-           WHERE status = 'active' OR status = 'activated'`
+           WHERE (status = 'active' OR status = 'activated') AND organization_id = ?`,
+          [organizationId]
         );
         return NextResponse.json({
           success: true,

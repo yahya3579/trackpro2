@@ -457,12 +457,6 @@ export default function DashboardPage() {
                 <PieChartIcon className="h-5 w-5" /> Overview
               </TabsTrigger>
               <TabsTrigger 
-                value="activity" 
-                className="data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg border-none rounded-md px-6 h-12 font-semibold flex items-center gap-2 transition-all"
-              >
-                <History className="h-5 w-5" /> Recent Activity
-              </TabsTrigger>
-              <TabsTrigger 
                 value="stats" 
                 className="data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow-lg border-none rounded-md px-6 h-12 font-semibold flex items-center gap-2 transition-all"
               >
@@ -667,66 +661,6 @@ export default function DashboardPage() {
                   </div>
                 </div>
               </CardContent>
-            </CardSpotlight>
-          </TabsContent>
-
-          <TabsContent value="activity" className="mt-10">
-            <CardSpotlight className="backdrop-blur-sm bg-card/80 border border-border/40 hover:shadow-md transition-all duration-300">
-              <CardHeader className='pb-6 pt-6'>
-                <CardTitle className="text-xl flex items-center">
-                  <History className="h-5 w-5 mr-2 text-blue-500" />
-                  Recent Activity
-                </CardTitle>
-                <CardDescription className="mt-1">Employee activity from the past 24 hours</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {loading ? (
-                  <div className="space-y-6">
-                    {[1, 2, 3].map((i) => (
-                      <div key={i} className="flex">
-                        <Skeleton className="h-12 w-12 rounded-full mr-4" />
-                        <div className="space-y-2 flex-1">
-                          <Skeleton className="h-4 w-1/4" />
-                          <Skeleton className="h-3 w-3/4" />
-                          <Skeleton className="h-2 w-1/6" />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="space-y-6">
-                    {[1, 2, 3].map((i) => (
-                      <div key={i} className="flex group p-3 rounded-lg hover:bg-muted/20 transition-colors">
-                        <div className="mr-4 flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-muted/50 to-muted group-hover:from-primary/10 group-hover:to-primary/20 transition-all">
-                          <User className="h-5 w-5 text-foreground group-hover:text-primary transition-colors" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium leading-none">John Doe</p>
-                          <p className="text-sm text-muted-foreground mt-1.5">
-                            Completed milestone on Project X
-                          </p>
-                          <div className="flex items-center mt-1.5">
-                            <Clock className="h-3.5 w-3.5 text-muted-foreground mr-1" />
-                            <p className="text-xs text-muted-foreground">
-                              2 hours ago
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-              <CardFooter>
-                <Button 
-                  variant="outline" 
-                  className="w-full rounded-full border-muted-foreground/20 hover:border-primary/20 hover:bg-primary/5"
-                  onClick={() => window.location.href = "/dashboard/activity-monitoring"}
-                >
-                  <BarChart2 className="mr-2 h-4 w-4" />
-                  View All Activity
-                </Button>
-              </CardFooter>
             </CardSpotlight>
           </TabsContent>
 

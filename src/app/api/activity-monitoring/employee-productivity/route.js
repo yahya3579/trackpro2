@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import db from '@/lib/db';
+import jwt from 'jsonwebtoken';
 
 // GET - Fetch employee productivity data
 export async function GET(request) {
@@ -11,6 +12,44 @@ export async function GET(request) {
         success: false, 
         error: 'Authorization token is required' 
       }, { status: 401 });
+    }
+    
+    // Decode JWT token to get user information
+    let decodedToken;
+    try {
+      decodedToken = jwt.verify(token, 'trackpro-secret-key');
+    } catch (err) {
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Invalid authentication token' 
+      }, { status: 401 });
+    }
+    // Get organization ID based on user role
+    let organizationId = null;
+    if (decodedToken.role === 'organization_admin') {
+      organizationId = decodedToken.id;
+    } else if (decodedToken.id) {
+      const [userRecord] = await db.query(
+        'SELECT organization_id FROM users WHERE id = ? OR email = ?',
+        [decodedToken.id, decodedToken.email]
+      );
+      if (userRecord.length > 0) {
+        organizationId = userRecord[0].organization_id;
+      } else {
+        const [employeeRecord] = await db.query(
+          'SELECT organization_id FROM employees WHERE id = ? OR email = ?',
+          [decodedToken.id, decodedToken.email]
+        );
+        if (employeeRecord.length > 0) {
+          organizationId = employeeRecord[0].organization_id;
+        }
+      }
+    }
+    if (!organizationId) {
+      return NextResponse.json({
+        success: false,
+        error: 'Could not determine organization for user.'
+      }, { status: 403 });
     }
     
     // Get query parameters
@@ -47,10 +86,10 @@ export async function GET(request) {
         ) as productivity_rate
       FROM app_usage au
       JOIN employees e ON au.employee_id = e.id
-      WHERE 1=1
+      WHERE e.organization_id = ?
     `;
     
-    const queryParams = [];
+    const queryParams = [organizationId];
     
     // Add filters
     if (specificEmployeeId) {

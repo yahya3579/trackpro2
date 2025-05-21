@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import db from '@/lib/db';
+import jwt from 'jsonwebtoken';
 
 // GET - Fetch activity categories summary
 export async function GET(request) {
@@ -13,6 +14,44 @@ export async function GET(request) {
       }, { status: 401 });
     }
     
+    // Decode JWT token to get user information
+    let decodedToken;
+    try {
+      decodedToken = jwt.verify(token, 'trackpro-secret-key');
+    } catch (err) {
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Invalid authentication token' 
+      }, { status: 401 });
+    }
+    // Get organization ID based on user role
+    let organizationId = null;
+    if (decodedToken.role === 'organization_admin') {
+      organizationId = decodedToken.id;
+    } else if (decodedToken.id) {
+      const [userRecord] = await db.query(
+        'SELECT organization_id FROM users WHERE id = ? OR email = ?',
+        [decodedToken.id, decodedToken.email]
+      );
+      if (userRecord.length > 0) {
+        organizationId = userRecord[0].organization_id;
+      } else {
+        const [employeeRecord] = await db.query(
+          'SELECT organization_id FROM employees WHERE id = ? OR email = ?',
+          [decodedToken.id, decodedToken.email]
+        );
+        if (employeeRecord.length > 0) {
+          organizationId = employeeRecord[0].organization_id;
+        }
+      }
+    }
+    if (!organizationId) {
+      return NextResponse.json({
+        success: false,
+        error: 'Could not determine organization for user.'
+      }, { status: 403 });
+    }
+    
     // Get query parameters
     const { searchParams } = new URL(request.url);
     const employeeId = searchParams.get('employee_id');
@@ -22,45 +61,47 @@ export async function GET(request) {
     // Build query for category summary
     let query = `
       SELECT 
-        category as name,
-        SUM(duration_seconds) as total_seconds,
+        au.category as name,
+        SUM(au.duration_seconds) as total_seconds,
         COUNT(*) as count,
-        ROUND(SUM(duration_seconds) * 100.0 / (
-          SELECT SUM(duration_seconds) 
-          FROM app_usage 
-          WHERE 1=1
-          ${employeeId ? ' AND employee_id = ?' : ''}
-          ${startDate ? ' AND date >= ?' : ''}
-          ${endDate ? ' AND date <= ?' : ''}
+        ROUND(SUM(au.duration_seconds) * 100.0 / (
+          SELECT SUM(au2.duration_seconds) 
+          FROM app_usage au2
+          LEFT JOIN employees e2 ON au2.employee_id = e2.id
+          WHERE e2.organization_id = ?
+          ${employeeId ? ' AND au2.employee_id = ?' : ''}
+          ${startDate ? ' AND au2.date >= ?' : ''}
+          ${endDate ? ' AND au2.date <= ?' : ''}
         )) as percentage
-      FROM app_usage
-      WHERE 1=1
+      FROM app_usage au
+      LEFT JOIN employees e ON au.employee_id = e.id
+      WHERE e.organization_id = ?
     `;
     
-    const queryParams = [];
-    const totalParams = [];
+    const queryParams = [organizationId];
+    const totalParams = [organizationId];
     
     // Add filters
     if (employeeId) {
-      query += ' AND employee_id = ?';
+      query += ' AND au.employee_id = ?';
       queryParams.push(employeeId);
       totalParams.push(employeeId);
     }
     
     if (startDate) {
-      query += ' AND date >= ?';
+      query += ' AND au.date >= ?';
       queryParams.push(startDate);
       totalParams.push(startDate);
     }
     
     if (endDate) {
-      query += ' AND date <= ?';
+      query += ' AND au.date <= ?';
       queryParams.push(endDate);
       totalParams.push(endDate);
     }
     
     // Group by and order by
-    query += ' GROUP BY category ORDER BY total_seconds DESC';
+    query += ' GROUP BY au.category ORDER BY total_seconds DESC';
     
     // Add all parameters (for both the main query and subquery)
     const allParams = [...queryParams, ...totalParams];

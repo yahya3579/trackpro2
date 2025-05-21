@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import db from '@/lib/db';
+import jwt from 'jsonwebtoken';
 
 // GET - Fetch productivity summary data
 export async function GET(request) {
@@ -11,6 +12,44 @@ export async function GET(request) {
         success: false, 
         error: 'Authorization token is required' 
       }, { status: 401 });
+    }
+    
+    // Decode JWT token to get user information
+    let decodedToken;
+    try {
+      decodedToken = jwt.verify(token, 'trackpro-secret-key');
+    } catch (err) {
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Invalid authentication token' 
+      }, { status: 401 });
+    }
+    // Get organization ID based on user role
+    let organizationId = null;
+    if (decodedToken.role === 'organization_admin') {
+      organizationId = decodedToken.id;
+    } else if (decodedToken.id) {
+      const [userRecord] = await db.query(
+        'SELECT organization_id FROM users WHERE id = ? OR email = ?',
+        [decodedToken.id, decodedToken.email]
+      );
+      if (userRecord.length > 0) {
+        organizationId = userRecord[0].organization_id;
+      } else {
+        const [employeeRecord] = await db.query(
+          'SELECT organization_id FROM employees WHERE id = ? OR email = ?',
+          [decodedToken.id, decodedToken.email]
+        );
+        if (employeeRecord.length > 0) {
+          organizationId = employeeRecord[0].organization_id;
+        }
+      }
+    }
+    if (!organizationId) {
+      return NextResponse.json({
+        success: false,
+        error: 'Could not determine organization for user.'
+      }, { status: 403 });
     }
     
     // Get query parameters
@@ -48,28 +87,30 @@ export async function GET(request) {
     // Build query for current period productivity
     let queryCurrentPeriod = `
       SELECT 
-        SUM(CASE WHEN productive = 1 THEN duration_seconds ELSE 0 END) as productive_seconds,
-        SUM(duration_seconds) as total_seconds,
+        SUM(CASE WHEN au.productive = 1 THEN au.duration_seconds ELSE 0 END) as productive_seconds,
+        SUM(au.duration_seconds) as total_seconds,
         ROUND(
-          SUM(CASE WHEN productive = 1 THEN duration_seconds ELSE 0 END) * 100.0 / 
-          SUM(duration_seconds)
+          SUM(CASE WHEN au.productive = 1 THEN au.duration_seconds ELSE 0 END) * 100.0 / 
+          SUM(au.duration_seconds)
         ) as productivity_rate
-      FROM app_usage
-      WHERE date BETWEEN ? AND ?
+      FROM app_usage au
+      LEFT JOIN employees e ON au.employee_id = e.id
+      WHERE au.date BETWEEN ? AND ? AND e.organization_id = ?
     `;
     
     // Build query for previous period productivity (for comparison)
     let queryPreviousPeriod = `
       SELECT 
         ROUND(
-          SUM(CASE WHEN productive = 1 THEN duration_seconds ELSE 0 END) * 100.0 / 
-          SUM(duration_seconds)
+          SUM(CASE WHEN au.productive = 1 THEN au.duration_seconds ELSE 0 END) * 100.0 / 
+          SUM(au.duration_seconds)
         ) as productivity_rate
-      FROM app_usage
-      WHERE date BETWEEN ? AND ?
+      FROM app_usage au
+      LEFT JOIN employees e ON au.employee_id = e.id
+      WHERE au.date BETWEEN ? AND ? AND e.organization_id = ?
     `;
     
-    const currentParams = [effectiveStartDate, effectiveEndDate];
+    const currentParams = [effectiveStartDate, effectiveEndDate, organizationId];
     const previousParams = [];
     
     // Calculate previous period dates (same length as current period)
@@ -86,12 +127,12 @@ export async function GET(request) {
     const previousStartDate = previousStartDateObj.toISOString().split('T')[0];
     const previousEndDate = previousEndDateObj.toISOString().split('T')[0];
     
-    previousParams.push(previousStartDate, previousEndDate);
+    previousParams.push(previousStartDate, previousEndDate, organizationId);
     
     // Add employee filter if specified
     if (employeeId) {
-      queryCurrentPeriod += ' AND employee_id = ?';
-      queryPreviousPeriod += ' AND employee_id = ?';
+      queryCurrentPeriod += ' AND au.employee_id = ?';
+      queryPreviousPeriod += ' AND au.employee_id = ?';
       currentParams.push(employeeId);
       previousParams.push(employeeId);
     }

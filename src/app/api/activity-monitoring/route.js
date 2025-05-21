@@ -450,4 +450,136 @@ export async function POST(request) {
       message: error.message 
     }, { status: 500 });
   }
+}
+
+// PUT - Update an existing activity record
+export async function PUT(request) {
+  try {
+    // Get token from header
+    const token = request.headers.get('x-auth-token');
+    if (!token) {
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Authorization token is required' 
+      }, { status: 401 });
+    }
+    let decodedToken;
+    try {
+      decodedToken = jwt.verify(token, 'trackpro-secret-key');
+    } catch (err) {
+      return NextResponse.json({ 
+        success: false, 
+        error: 'Invalid authentication token' 
+      }, { status: 401 });
+    }
+    // Get organization ID
+    let organizationId = null;
+    if (decodedToken.role === 'organization_admin') {
+      organizationId = decodedToken.id;
+    } else if (decodedToken.id) {
+      const [userRecord] = await db.query(
+        'SELECT organization_id FROM users WHERE id = ? OR email = ?',
+        [decodedToken.id, decodedToken.email]
+      );
+      if (userRecord.length > 0) {
+        organizationId = userRecord[0].organization_id;
+      } else {
+        const [employeeRecord] = await db.query(
+          'SELECT organization_id FROM employees WHERE id = ? OR email = ?',
+          [decodedToken.id, decodedToken.email]
+        );
+        if (employeeRecord.length > 0) {
+          organizationId = employeeRecord[0].organization_id;
+        }
+      }
+    }
+    if (!organizationId) {
+      return NextResponse.json({
+        success: false,
+        error: 'Could not determine organization for user.'
+      }, { status: 403 });
+    }
+    // Get data from request body
+    const data = await request.json();
+    if (!data.id) {
+      return NextResponse.json({
+        success: false,
+        error: 'Activity record ID is required.'
+      }, { status: 400 });
+    }
+    // Check if the record belongs to the organization
+    const [check] = await db.query(
+      `SELECT au.id FROM app_usage au
+       LEFT JOIN employees e ON au.employee_id = e.id
+       WHERE au.id = ? AND e.organization_id = ?`,
+      [data.id, organizationId]
+    );
+    if (check.length === 0) {
+      return NextResponse.json({
+        success: false,
+        error: 'No such record for your organization.'
+      }, { status: 404 });
+    }
+    // Build update fields
+    const fields = [];
+    const values = [];
+    if (data.application_name) {
+      fields.push('application_name = ?');
+      values.push(data.application_name);
+    }
+    if (data.window_title) {
+      fields.push('window_title = ?');
+      values.push(data.window_title);
+    }
+    if (data.url) {
+      fields.push('url = ?');
+      values.push(data.url);
+    }
+    if (data.category) {
+      fields.push('category = ?');
+      values.push(data.category);
+    }
+    if (data.start_time) {
+      fields.push('start_time = ?');
+      values.push(data.start_time);
+    }
+    if (data.end_time) {
+      fields.push('end_time = ?');
+      values.push(data.end_time);
+    }
+    if (data.duration_seconds) {
+      fields.push('duration_seconds = ?');
+      values.push(data.duration_seconds);
+    }
+    if (data.date) {
+      fields.push('date = ?');
+      values.push(data.date);
+    }
+    if (typeof data.productive === 'number') {
+      fields.push('productive = ?');
+      values.push(data.productive);
+    }
+    if (fields.length === 0) {
+      return NextResponse.json({
+        success: false,
+        error: 'No fields to update.'
+      }, { status: 400 });
+    }
+    values.push(data.id);
+    await db.query(
+      `UPDATE app_usage SET ${fields.join(', ')} WHERE id = ?`,
+      values
+    );
+    return NextResponse.json({
+      success: true,
+      message: 'Activity record updated successfully.'
+    });
+  } catch (error) {
+    console.error('Error updating activity record:', error);
+    return NextResponse.json({
+      success: false,
+      error: 'Failed to update activity record',
+      message: error.message
+    }, { status: 500 });
+  }
 } 
