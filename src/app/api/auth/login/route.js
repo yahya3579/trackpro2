@@ -51,7 +51,7 @@ export async function POST(request) {
     }
 
     // Check if user exists in users table (employees who accepted invitations)
-    const [users] = await db.query('SELECT u.*, e.employee_name, e.role FROM users u JOIN employees e ON u.email = e.email WHERE u.email = ?', [email]);
+    const [users] = await db.query('SELECT u.*, e.employee_name, e.role, e.id as employee_id FROM users u JOIN employees e ON u.email = e.email WHERE u.email = ?', [email]);
     
     if (users.length > 0) {
       // User exists
@@ -86,7 +86,7 @@ export async function POST(request) {
 
       // Generate token
       const token = jwt.sign(
-        { id: user.id, email: user.email, name: user.employee_name, role: role },
+        { id: user.employee_id || user.id, email: user.email, name: user.employee_name, role: role },
         JWT_SECRET,
         { expiresIn: '1d' }
       );
@@ -97,7 +97,7 @@ export async function POST(request) {
         token,
         redirectUrl: redirectUrl,
         user: {
-          id: user.id,
+          id: user.employee_id || user.id,
           name: user.employee_name,
           email: user.email,
           role: role

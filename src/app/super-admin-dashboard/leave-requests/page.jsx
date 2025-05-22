@@ -39,6 +39,10 @@ import {
   ArrowUpDown,
   Info
 } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { toast } from "sonner";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 
 export default function LeaveRequestsPage() {
   const [loading, setLoading] = useState(true);
@@ -50,6 +54,10 @@ export default function LeaveRequestsPage() {
   const [typeFilter, setTypeFilter] = useState("");
   const [organizationFilter, setOrganizationFilter] = useState("");
   const [adminId, setAdminId] = useState(1); // Placeholder for admin ID
+  const [leaveActionDialogOpen, setLeaveActionDialogOpen] = useState(false);
+  const [selectedLeave, setSelectedLeave] = useState(null);
+  const [actionType, setActionType] = useState("");
+  const [rejectionReason, setRejectionReason] = useState("");
 
   // Sample organizations for the filter
   const organizations = [
@@ -63,61 +71,35 @@ export default function LeaveRequestsPage() {
     const fetchLeaveRequests = async () => {
       try {
         setLoading(true);
-        
-        // Add authentication token
+        const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+        if (!token) {
+          toast.error("Authentication token not found");
+          setLoading(false);
+          return;
+        }
         const response = await fetch('/api/leave-management', {
           headers: {
-            'x-auth-token': 'token' // Add a placeholder token
+            'x-auth-token': token
           }
         });
-        
         if (!response.ok) {
           throw new Error('Failed to fetch leave requests');
         }
-        
         const data = await response.json();
-        
         if (data.success) {
           setLeaveRequests(data.leaveRequests);
           setLeaveTypes(data.leaveTypes || []);
         } else {
           throw new Error(data.error || 'Failed to fetch leave requests');
         }
-        
         setLoading(false);
       } catch (error) {
         console.error("Error fetching leave requests:", error);
-        // Use mock data as fallback if API fails
-        setLeaveRequests([
-          { 
-            id: 1, 
-            employee_name: "John Smith", 
-            employee_id: 101,
-            organization: "Tech Solutions Inc.",
-            leave_type_name: "Sick Leave", 
-            start_date: "2023-11-15", 
-            end_date: "2023-11-16", 
-            total_days: 2,
-            status: "pending", 
-            reason: "Not feeling well",
-          },
-          { 
-            id: 2, 
-            employee_name: "Sarah Johnson", 
-            employee_id: 102,
-            organization: "Tech Solutions Inc.",
-            leave_type_name: "Vacation", 
-            start_date: "2023-11-20", 
-            end_date: "2023-11-24", 
-            total_days: 5,
-            status: "pending", 
-            reason: "Family vacation",
-          },
-        ]);
+        toast.error("Failed to fetch leave requests");
+        setLeaveRequests([]);
         setLoading(false);
       }
     };
-
     fetchLeaveRequests();
   }, []);
 
@@ -129,15 +111,12 @@ export default function LeaveRequestsPage() {
   const filterRequests = () => {
     const filtered = leaveRequests.filter((request) => {
       const matchesSearch = request.employee_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                            (request.reason && request.reason.toLowerCase().includes(searchTerm.toLowerCase()));
-      
+        (request.reason && request.reason.toLowerCase().includes(searchTerm.toLowerCase()));
       const matchesStatus = !statusFilter || statusFilter === "all_statuses" ? true : request.status === statusFilter;
       const matchesType = !typeFilter || typeFilter === "all_types" ? true : request.leave_type_name === typeFilter;
       const matchesOrganization = !organizationFilter || organizationFilter === "all_organizations" ? true : request.organization === organizationFilter;
-      
       return matchesSearch && matchesStatus && matchesType && matchesOrganization;
     });
-    
     setFilteredRequests(filtered);
   };
 
@@ -151,92 +130,64 @@ export default function LeaveRequestsPage() {
       .substring(0, 2);
   };
 
+  const openActionDialog = (leave, action) => {
+    setSelectedLeave(leave);
+    setActionType(action);
+    setLeaveActionDialogOpen(true);
+  };
+
   const handleApprove = async (id) => {
-    try {
-      setLoading(true);
-      
-      const response = await fetch('/api/leave-management', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-auth-token': 'token'
-        },
-        body: JSON.stringify({
-          id,
-          status: 'approved',
-          approver_id: adminId
-        })
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to approve leave request');
-      }
-      
-      const data = await response.json();
-      
-      if (data.success) {
-        // Update the local state
-        const updatedRequests = leaveRequests.map((request) => 
-          request.id === id ? { ...request, status: "approved" } : request
-        );
-        setLeaveRequests(updatedRequests);
-      } else {
-        throw new Error(data.error || 'Failed to approve leave request');
-      }
-      
-      setLoading(false);
-    } catch (error) {
-      console.error("Error approving leave request:", error);
-      // Fallback to optimistic update if API fails
-      const updatedRequests = leaveRequests.map((request) => 
-        request.id === id ? { ...request, status: "approved" } : request
-      );
-      setLeaveRequests(updatedRequests);
-      setLoading(false);
-    }
+    await handleLeaveAction(id, "approved");
   };
 
   const handleReject = async (id) => {
+    setActionType("rejected");
+    setSelectedLeave(filteredRequests.find(r => r.id === id));
+    setLeaveActionDialogOpen(true);
+  };
+
+  const handleLeaveAction = async (id, action) => {
     try {
       setLoading(true);
-      
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      if (!token) {
+        toast.error("Authentication token not found");
+        setLoading(false);
+        return;
+      }
+      const payload = {
+        id,
+        status: action,
+        approver_id: adminId,
+        rejection_reason: action === "rejected" ? rejectionReason : null
+      };
       const response = await fetch('/api/leave-management', {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'x-auth-token': 'token'
+          'x-auth-token': token
         },
-        body: JSON.stringify({
-          id,
-          status: 'rejected',
-          approver_id: adminId
-        })
+        body: JSON.stringify(payload)
       });
-      
-      if (!response.ok) {
-        throw new Error('Failed to reject leave request');
-      }
-      
       const data = await response.json();
-      
-      if (data.success) {
+      if (response.ok && data.success) {
         // Update the local state
-        const updatedRequests = leaveRequests.map((request) => 
-          request.id === id ? { ...request, status: "rejected" } : request
+        const updatedRequests = leaveRequests.map((request) =>
+          request.id === id ? { ...request, status: action, rejection_reason: action === "rejected" ? rejectionReason : request.rejection_reason } : request
         );
         setLeaveRequests(updatedRequests);
+        toast.success(`Leave request ${action === "approved" ? "approved" : "rejected"} successfully.`);
       } else {
-        throw new Error(data.error || 'Failed to reject leave request');
+        throw new Error(data.error || `Failed to ${action} leave request`);
       }
-      
       setLoading(false);
+      setLeaveActionDialogOpen(false);
+      setRejectionReason("");
+      setSelectedLeave(null);
+      setActionType("");
     } catch (error) {
-      console.error("Error rejecting leave request:", error);
-      // Fallback to optimistic update if API fails
-      const updatedRequests = leaveRequests.map((request) => 
-        request.id === id ? { ...request, status: "rejected" } : request
-      );
-      setLeaveRequests(updatedRequests);
+      console.error(`Error ${action} leave request:`, error);
+      toast.error(error.message || `Failed to ${action} leave request`);
       setLoading(false);
     }
   };
@@ -245,17 +196,13 @@ export default function LeaveRequestsPage() {
   const formatDateRange = (startDate, endDate) => {
     const start = new Date(startDate);
     const end = new Date(endDate);
-    
     const options = { month: 'short', day: 'numeric' };
-    
     if (startDate === endDate) {
       return start.toLocaleDateString('en-US', options);
     }
-    
     if (start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear()) {
       return `${start.toLocaleDateString('en-US', { day: 'numeric' })} - ${end.toLocaleDateString('en-US', options)}`;
     }
-    
     return `${start.toLocaleDateString('en-US', options)} - ${end.toLocaleDateString('en-US', options)}`;
   };
 
@@ -319,7 +266,6 @@ export default function LeaveRequestsPage() {
         <h1 className="text-2xl font-bold tracking-tight">Leave Requests</h1>
         <Button variant="outline" onClick={handleExportCSV}>Export Data</Button>
       </div>
-
       <Card>
         <CardHeader className="pb-3">
           <CardTitle>Leave Requests</CardTitle>
@@ -352,7 +298,6 @@ export default function LeaveRequestsPage() {
                   <SelectItem value="rejected">Rejected</SelectItem>
                 </SelectContent>
               </Select>
-              
               <Select value={typeFilter} onValueChange={setTypeFilter}>
                 <SelectTrigger className="w-full sm:w-40">
                   <SelectValue placeholder="Leave Type" />
@@ -368,7 +313,6 @@ export default function LeaveRequestsPage() {
               </Select>
             </div>
           </div>
-
           {loading ? (
             <div className="space-y-4">
               {[1, 2, 3].map((i) => (
@@ -490,6 +434,79 @@ export default function LeaveRequestsPage() {
           )}
         </CardContent>
       </Card>
+      {/* Leave Action Dialog for rejection reason */}
+      <Dialog open={leaveActionDialogOpen} onOpenChange={setLeaveActionDialogOpen}>
+        <DialogContent className="sm:max-w-[450px]">
+          <div className="py-4">
+            {selectedLeave && actionType === "rejected" && (
+              <div className="grid gap-4">
+                <div className="rounded-md border p-4">
+                  <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div className="font-medium">Employee:</div>
+                    <div className="font-semibold">{selectedLeave.employee_name}</div>
+                    <div className="font-medium">Leave Type:</div>
+                    <div className="font-semibold">{selectedLeave.leave_type_name}</div>
+                    <div className="font-medium">Date Range:</div>
+                    <div className="font-semibold">{formatDateRange(selectedLeave.start_date, selectedLeave.end_date)}</div>
+                    <div className="font-medium">Total Days:</div>
+                    <div className="font-semibold">{selectedLeave.total_days}</div>
+                    <div className="font-medium">Current Status:</div>
+                    <div className="font-semibold">{selectedLeave.status}</div>
+                    <div className="font-medium">Reason for Leave:</div>
+                    <div className="font-semibold">{selectedLeave.reason || "No reason provided"}</div>
+                  </div>
+                </div>
+                <div className="mt-2 text-sm rounded-md bg-red-50 p-3 border border-red-200">
+                  <div className="flex items-start gap-2">
+                    <XCircle className="h-5 w-5 text-red-500 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="font-medium text-red-800">Rejection Information</p>
+                      <p className="text-red-700 mt-1">
+                        The employee will be notified of this rejection with the reason you provide below.
+                        Their leave balance will not be affected.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                <div className="mt-2">
+                  <Label htmlFor="rejectionReason" className="text-red-600 font-medium">
+                    Rejection Reason <span className="text-red-500">*</span>
+                  </Label>
+                  <Textarea
+                    id="rejectionReason"
+                    value={rejectionReason}
+                    onChange={(e) => setRejectionReason(e.target.value)}
+                    placeholder="Please provide a detailed reason for rejection"
+                    className="mt-1 border-red-300 focus:border-red-500"
+                    required
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setLeaveActionDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={async () => {
+                if (actionType === "rejected" && !rejectionReason.trim()) {
+                  toast.error("Please provide a reason for rejection");
+                  return;
+                }
+                await handleLeaveAction(selectedLeave.id, actionType);
+              }}
+              className={
+                actionType === "approved" ? "bg-green-600 hover:bg-green-700" :
+                  actionType === "rejected" ? "bg-red-600 hover:bg-red-700" : ""
+              }
+            >
+              {actionType === "approved" ? "Approve Leave" :
+                actionType === "rejected" ? "Reject Leave" : "Confirm"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 } 

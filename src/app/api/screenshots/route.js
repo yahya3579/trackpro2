@@ -218,12 +218,24 @@ export async function POST(request) {
         });
         continue;
       }
-      // Check if employee exists
-      const [employees] = await db.query(
-        'SELECT id FROM employees WHERE id = ?',
+      // Check if employee exists in users table first, then employees table as fallback
+      let userExists = false;
+      const [users] = await db.query(
+        'SELECT id FROM users WHERE id = ?',
         [employee_id]
       );
-      if (employees.length === 0) {
+      if (users.length > 0) {
+        userExists = true;
+      } else {
+        const [employees] = await db.query(
+          'SELECT id FROM employees WHERE id = ?',
+          [employee_id]
+        );
+        if (employees.length > 0) {
+          userExists = true;
+        }
+      }
+      if (!userExists) {
         results.push({
           success: false,
           error: 'Employee not found',

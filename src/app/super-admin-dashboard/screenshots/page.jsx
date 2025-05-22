@@ -57,9 +57,11 @@ export default function ScreenshotsPage() {
   useEffect(() => {
     const fetchEmployees = async () => {
       try {
+        const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+        if (!token) throw new Error('Authentication token not found. Please log in again.');
         const response = await fetch('/api/employees', {
           headers: {
-            'x-auth-token': 'token'
+            'x-auth-token': token
           }
         });
         if (!response.ok) throw new Error('Failed to fetch employees');
@@ -88,9 +90,11 @@ export default function ScreenshotsPage() {
         setLoading(true);
         
         // Add authentication token
+        const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+        if (!token) throw new Error('Authentication token not found. Please log in again.');
         const response = await fetch('/api/screenshots', {
           headers: {
-            'x-auth-token': 'token' // Add a placeholder token
+            'x-auth-token': token
           }
         });
         

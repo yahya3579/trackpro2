@@ -57,29 +57,35 @@ export default function SuperAdminDashboardPage() {
       try {
         setLoading(true);
         
+        // Get the real JWT token from localStorage
+        const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+        if (!token) {
+          throw new Error('Authentication token not found. Please log in again.');
+        }
+        
         // Fetch employees data
         const employeesRes = await fetch('/api/employees', {
-          headers: { 'x-auth-token': 'token' }
+          headers: { 'x-auth-token': token }
         });
         
         // Fetch all leave requests from the main endpoint
         const leavesRes = await fetch('/api/leave-management', {
-          headers: { 'x-auth-token': 'token' }
+          headers: { 'x-auth-token': token }
         });
         
         // Fetch productivity summary from the correct endpoint
         const productivityRes = await fetch('/api/activity-monitoring/productivity-summary', {
-          headers: { 'x-auth-token': 'token' }
+          headers: { 'x-auth-token': token }
         });
         
         // Fetch productivity breakdown by app category
         const categoriesRes = await fetch('/api/activity-monitoring/categories', {
-          headers: { 'x-auth-token': 'token' }
+          headers: { 'x-auth-token': token }
         });
         
         // Fetch employee productivity data for breakdown
         const employeeProductivityRes = await fetch('/api/activity-monitoring/employee-productivity', {
-          headers: { 'x-auth-token': 'token' }
+          headers: { 'x-auth-token': token }
         });
         
         // Process employees data
@@ -298,7 +304,7 @@ export default function SuperAdminDashboardPage() {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'x-auth-token': 'token'
+          'x-auth-token': typeof window !== 'undefined' ? localStorage.getItem('token') : ''
         },
         body: JSON.stringify(payload)
       });

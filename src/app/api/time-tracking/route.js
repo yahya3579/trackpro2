@@ -27,8 +27,13 @@ export async function GET(request) {
     
     // Get organization ID based on user role
     let organizationId = null;
-    
-    if (decodedToken.role === 'organization_admin') {
+    const isSuperAdmin = decodedToken.role && decodedToken.role.toLowerCase().replace(/\s/g, '_') === 'super_admin';
+    // Allow super_admin to filter by organization_id query param
+    const { searchParams } = new URL(request.url);
+    const orgIdParam = searchParams.get('organization_id');
+    if (isSuperAdmin && orgIdParam) {
+      organizationId = orgIdParam;
+    } else if (decodedToken.role === 'organization_admin') {
       organizationId = decodedToken.id;
     } else if (decodedToken.id) {
       // For employees, get their organization ID
@@ -53,7 +58,6 @@ export async function GET(request) {
     }
     
     // Get query parameters
-    const { searchParams } = new URL(request.url);
     const employeeId = searchParams.get('employee_id');
     const startDate = searchParams.get('start_date');
     const endDate = searchParams.get('end_date');
@@ -69,7 +73,7 @@ export async function GET(request) {
     const queryParams = [];
     
     // Add organization filter if applicable
-    if (organizationId && decodedToken.role !== 'super_admin') {
+    if (!isSuperAdmin && organizationId) {
       query += ' AND e.organization_id = ?';
       queryParams.push(organizationId);
     }

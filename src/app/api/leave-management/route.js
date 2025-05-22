@@ -28,19 +28,17 @@ export async function GET(request) {
 
     // Determine user's organization_id
     let organizationId = null;
-    if (decodedToken.role === 'organization_admin') {
+    const isSuperAdmin = decodedToken.role && decodedToken.role.toLowerCase().replace(/\s/g, '_') === 'super_admin';
+    // For super_admin, fetch all leave requests (no org filter)
+    if (isSuperAdmin) {
+      organizationId = null;
+    } else if (decodedToken.role === 'organization_admin') {
       organizationId = decodedToken.id;
     } else {
       const [employee] = await db.query('SELECT organization_id FROM employees WHERE id = ?', [decodedToken.id]);
       if (employee.length > 0) {
         organizationId = employee[0].organization_id;
       }
-    }
-    if (!organizationId) {
-      return NextResponse.json({
-        success: false,
-        error: 'Could not determine user organization.'
-      }, { status: 403 });
     }
 
     // Get query parameters
@@ -75,10 +73,14 @@ export async function GET(request) {
       JOIN employees e ON lr.employee_id = e.id
       JOIN leave_types lt ON lr.leave_type_id = lt.id
       LEFT JOIN employees a ON lr.approved_by = a.id
-      WHERE e.organization_id = ?
+      WHERE 1=1
     `;
     
-    const queryParams = [organizationId];
+    const queryParams = [];
+    if (!isSuperAdmin && organizationId) {
+      query += ' AND e.organization_id = ?';
+      queryParams.push(organizationId);
+    }
     
     // Add filters
     if (employeeId) {

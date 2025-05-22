@@ -27,8 +27,10 @@ export async function GET(request) {
     
     // Get organization ID based on user role
     let organizationId = null;
-    
-    if (decodedToken.role === 'organization_admin') {
+    const isSuperAdmin = decodedToken.role && decodedToken.role.toLowerCase().replace(/\s/g, '_') === 'super_admin';
+    if (isSuperAdmin) {
+      organizationId = null;
+    } else if (decodedToken.role === 'organization_admin') {
       organizationId = decodedToken.id;
     } else if (decodedToken.id) {
       // For employees, get their organization ID
@@ -107,7 +109,7 @@ export async function GET(request) {
     const conditions = [];
     
     // Always filter by organization ID if available
-    if (organizationId && columns.includes('organization_id')) {
+    if (!isSuperAdmin && organizationId && columns.includes('organization_id')) {
       conditions.push('organization_id = ?');
       queryParams.push(organizationId);
     }

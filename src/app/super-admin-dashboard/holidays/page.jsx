@@ -61,7 +61,13 @@ export default function HolidaysPage() {
     const fetchHolidays = async () => {
       try {
         setLoading(true);
-        const response = await fetch(`/api/holiday-management?year=${yearFilter}`);
+        const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+        if (!token) throw new Error('Authentication token not found. Please log in again.');
+        const response = await fetch(`/api/holiday-management?year=${yearFilter}`, {
+          headers: {
+            'x-auth-token': token
+          }
+        });
         if (!response.ok) throw new Error('Failed to fetch holidays');
         const data = await response.json();
         if (data.holidays) {

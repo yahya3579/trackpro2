@@ -48,9 +48,13 @@ export default function EmployeesPage() {
         setLoading(true);
         
         // For now, let's update the API to bypass token verification
+        const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+        if (!token) {
+          throw new Error('Authentication token not found. Please log in again.');
+        }
         const response = await fetch('/api/employees', {
           headers: {
-            'x-auth-token': 'token' // Add a placeholder token
+            'x-auth-token': token
           }
         });
         
