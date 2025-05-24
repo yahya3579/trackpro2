@@ -140,7 +140,7 @@ export async function GET(request) {
             await db.query(`
               INSERT INTO app_usage (
                 employee_id, application_name, window_title, url, category,
-                start_time, end_time, duration_seconds, date, productive, created_at
+                time, end_time, duration_seconds, date, productive, created_at
               ) VALUES (?, ?, ?, ?, ?, NOW(), NOW(), ?, CURDATE(), ?, NOW())`,
               [
                 employeeId,
@@ -167,7 +167,7 @@ export async function GET(request) {
       SELECT 
         au.id, au.employee_id, e.employee_name, 
         au.application_name, au.window_title, au.url,
-        au.category, au.start_time, au.end_time, 
+        au.category, au.time, au.end_time, 
         au.duration_seconds,
         au.date, au.productive,
         au.created_at
@@ -236,7 +236,7 @@ export async function GET(request) {
     }
     
     // Order by date and start time
-    query += ' ORDER BY au.date DESC, au.start_time DESC';
+    query += ' ORDER BY au.date DESC, au.time DESC';
     
     console.log('Executing query:', query);
     console.log('Query params:', queryParams);
@@ -384,7 +384,7 @@ export async function POST(request) {
     for (const data of activities) {
       try {
         // Validate required fields
-        if (!data.employee_id || !data.application_name || !data.start_time) {
+        if (!data.employee_id || !data.application_name || !data.time) {
           results.push({ 
             success: false, 
             error: 'Employee ID, application name, and start time are required fields',
@@ -395,7 +395,7 @@ export async function POST(request) {
         // Calculate duration if end_time is provided
         let durationSeconds = data.duration_seconds || 0;
         if (data.end_time && !durationSeconds) {
-          const startTime = new Date(data.start_time);
+          const startTime = new Date(data.time);
           const endTime = new Date(data.end_time);
           durationSeconds = Math.round((endTime - startTime) / 1000);
         }
@@ -415,13 +415,13 @@ export async function POST(request) {
             category = 'communication';
           }
         }
-        // Get date from start_time if not provided
-        const date = data.date || new Date(data.start_time).toISOString().split('T')[0];
+        // Get date from time if not provided
+        const date = data.date || new Date(data.time).toISOString().split('T')[0];
         // Insert new record
         const [result] = await db.query(
           `INSERT INTO app_usage (
             employee_id, application_name, window_title, url, category,
-            start_time, end_time, duration_seconds, date, productive,
+            time, end_time, duration_seconds, date, productive,
             created_at
           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
           [
@@ -430,7 +430,7 @@ export async function POST(request) {
             data.window_title || null,
             data.url || null,
             category,
-            data.start_time,
+            data.time,
             data.end_time || null,
             durationSeconds,
             date,
@@ -557,9 +557,9 @@ export async function PUT(request) {
       fields.push('category = ?');
       values.push(data.category);
     }
-    if (data.start_time) {
-      fields.push('start_time = ?');
-      values.push(data.start_time);
+    if (data.time) {
+      fields.push('time = ?');
+      values.push(data.time);
     }
     if (data.end_time) {
       fields.push('end_time = ?');

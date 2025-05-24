@@ -124,10 +124,28 @@ export async function GET(request) {
     // Execute query
     const [timeData] = await db.query(query, queryParams);
     
+    // Transform to nested structure: { [date]: { [employee_id]: { ... } } }
+    const nested = {};
+    for (const row of timeData) {
+      if (!nested[row.date]) nested[row.date] = {};
+      nested[row.date][row.employee_id] = {
+        employee_name: row.employee_name,
+        sessions: row.sessions ? JSON.parse(row.sessions) : [],
+        total_hours: row.total_hours,
+        active_time: row.active_time,
+        break_time: row.break_time,
+        clock_in: row.clock_in,
+        clock_out: row.clock_out,
+        status: row.status,
+        organization_id: row.organization_id,
+        id: row.id
+      };
+    }
+    
     // Return data
     return NextResponse.json({ 
       success: true, 
-      timeData 
+      timeData: nested
     });
     
   } catch (error) {
@@ -139,7 +157,7 @@ export async function GET(request) {
   }
 }
 
-// POST - Create a new time tracking entry (supports multiple entries)
+// POST - Create or update time tracking entries from nested JSON structure
 export async function POST(request) {
   try {
     // Get token from header
@@ -176,76 +194,139 @@ export async function POST(request) {
       }
     }
     
-    // Get data from request body
+    // Get data from request body (nested JSON)
     const body = await request.json();
-    // Support both single object and array
-    const records = Array.isArray(body) ? body : [body];
     const results = [];
-    for (const data of records) {
-      // Validate required fields
-      if (!data.employee_id || !data.date) {
-        results.push({ 
-          success: false, 
-          error: 'Employee ID and date are required fields',
-          employee_id: data.employee_id,
-          date: data.date
-        });
-        continue;
-      }
-      // Check if employee belongs to the user's organization
-      if (organizationId && decodedToken.role !== 'organization_admin') {
-        const [empCheck] = await db.query(
-          'SELECT id FROM employees WHERE id = ? AND organization_id = ?',
-          [data.employee_id, organizationId]
-        );
-        if (empCheck.length === 0) {
-          results.push({
-            success: false,
-            error: 'You are not authorized to create time entries for this employee',
-            employee_id: data.employee_id,
-            date: data.date
+    // Loop through each date and employee
+    for (const date of Object.keys(body)) {
+      const employees = body[date];
+      for (const employeeId of Object.keys(employees)) {
+        const data = employees[employeeId];
+        // Validate required fields
+        if (!employeeId || !date) {
+          results.push({ 
+            success: false, 
+            error: 'Employee ID and date are required fields',
+            employee_id: employeeId,
+            date
           });
           continue;
         }
-      }
-      // Insert new record
-      try {
-        const [result] = await db.query(
-          `INSERT INTO time_tracking (
-            employee_id, date, clock_in, clock_out, total_hours, active_time, 
-            break_time, status, created_at, updated_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
-          [
-            data.employee_id,
-            data.date,
-            data.clock_in || null,
-            data.clock_out || null,
-            data.total_hours || 0,
-            data.active_time || 0,
-            data.break_time || 0,
-            data.status || 'present',
-          ]
+        // Check if employee belongs to the user's organization
+        if (organizationId && decodedToken.role !== 'organization_admin') {
+          const [empCheck] = await db.query(
+            'SELECT id FROM employees WHERE id = ? AND organization_id = ?',
+            [employeeId, organizationId]
+          );
+          if (empCheck.length === 0) {
+            results.push({
+              success: false,
+              error: 'You are not authorized to create time entries for this employee',
+              employee_id: employeeId,
+              date
+            });
+            continue;
+          }
+        }
+        // Check if a record exists for this employee and date
+        const [existingRecords] = await db.query(
+          'SELECT * FROM time_tracking WHERE employee_id = ? AND date = ?',
+          [employeeId, date]
         );
-        results.push({
-          success: true,
-          message: 'Time tracking entry created successfully',
-          id: result.insertId,
-          employee_id: data.employee_id,
-          date: data.date
-        });
-      } catch (insertError) {
-        results.push({
-          success: false,
-          error: 'Failed to create time tracking entry',
-          message: insertError.message,
-          employee_id: data.employee_id,
-          date: data.date
-        });
+        if (existingRecords.length > 0) {
+          // Update existing record: merge sessions and increment time fields
+          const existing = existingRecords[0];
+          let existingSessions = [];
+          try {
+            existingSessions = existing.sessions ? JSON.parse(existing.sessions) : [];
+          } catch (e) {
+            existingSessions = [];
+          }
+          // Merge sessions
+          const newSessions = Array.isArray(data.sessions) ? data.sessions : (data.sessions ? [data.sessions] : []);
+          const mergedSessions = [...existingSessions, ...newSessions];
+          // Increment time fields
+          const total_hours = (parseFloat(existing.total_hours) || 0) + (parseFloat(data.total_hours) || 0);
+          const active_time = (parseFloat(existing.active_time) || 0) + (parseFloat(data.active_time) || 0);
+          const break_time = (parseFloat(existing.break_time) || 0) + (parseFloat(data.break_time) || 0);
+          // Update record
+          try {
+            await db.query(
+              `UPDATE time_tracking SET 
+                clock_in = ?,
+                clock_out = ?,
+                total_hours = ?,
+                active_time = ?,
+                break_time = ?,
+                status = ?,
+                sessions = ?,
+                updated_at = NOW()
+              WHERE id = ?`,
+              [
+                data.clock_in || existing.clock_in || null,
+                data.clock_out || existing.clock_out || null,
+                total_hours,
+                active_time,
+                break_time,
+                data.status || existing.status || 'present',
+                JSON.stringify(mergedSessions),
+                existing.id
+              ]
+            );
+            results.push({
+              success: true,
+              message: 'Time tracking entry updated successfully',
+              id: existing.id,
+              employee_id: employeeId,
+              date
+            });
+          } catch (updateError) {
+            results.push({
+              success: false,
+              error: 'Failed to update time tracking entry',
+              message: updateError.message,
+              employee_id: employeeId,
+              date
+            });
+          }
+        } else {
+          // Insert new record
+          try {
+            const [result] = await db.query(
+              `INSERT INTO time_tracking (
+                employee_id, date, clock_in, clock_out, total_hours, active_time, 
+                break_time, status, sessions, created_at, updated_at
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+              [
+                employeeId,
+                date,
+                data.clock_in || null,
+                data.clock_out || null,
+                data.total_hours || 0,
+                data.active_time || 0,
+                data.break_time || 0,
+                data.status || 'present',
+                JSON.stringify(Array.isArray(data.sessions) ? data.sessions : (data.sessions ? [data.sessions] : [])),
+              ]
+            );
+            results.push({
+              success: true,
+              message: 'Time tracking entry created successfully',
+              id: result.insertId,
+              employee_id: employeeId,
+              date
+            });
+          } catch (insertError) {
+            results.push({
+              success: false,
+              error: 'Failed to create time tracking entry',
+              message: insertError.message,
+              employee_id: employeeId,
+              date
+            });
+          }
+        }
       }
-    }
-    // If only one record was sent, return a single object for backward compatibility
-    if (!Array.isArray(body)) {
-      return NextResponse.json(results[0]);
     }
     return NextResponse.json({
       success: results.every(r => r.success),
