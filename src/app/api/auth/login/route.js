@@ -84,6 +84,25 @@ export async function POST(request) {
         redirectUrl = '/dashboard';
       }
 
+      // --- Fetch today's total_hours and session count from time_tracking ---
+      const today = new Date().toISOString().split('T')[0];
+      let total_hours = 0;
+      let session_count = 0;
+      try {
+        const [trackingRows] = await db.query(
+          'SELECT total_hours, sessions FROM time_tracking WHERE employee_id = ? AND date = ?',
+          [user.employee_id, today]
+        );
+        if (trackingRows.length > 0) {
+          total_hours = parseFloat(trackingRows[0].total_hours) || 0;
+          const sessions = trackingRows[0].sessions ? JSON.parse(trackingRows[0].sessions) : [];
+          session_count = Array.isArray(sessions) ? sessions.length : 0;
+        }
+      } catch (err) {
+        // If error, just leave as 0
+      }
+      // ---------------------------------------------------------------
+
       // Generate token
       const token = jwt.sign(
         { id: user.employee_id || user.id, email: user.email, name: user.employee_name, role: role },
@@ -100,7 +119,9 @@ export async function POST(request) {
           id: user.employee_id || user.id,
           name: user.employee_name,
           email: user.email,
-          role: role
+          role: role,
+          total_hours_today: total_hours,
+          session_count_today: session_count
         }
       });
     }
