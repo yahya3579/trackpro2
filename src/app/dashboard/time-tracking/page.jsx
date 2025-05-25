@@ -181,9 +181,18 @@ export default function TimeTrackingPage() {
 
   const filteredData = getFilteredData();
 
+  // Helper to flatten nested timeData object to array
+  const flattenTimeData = (data) => {
+    if (Array.isArray(data)) return data;
+    if (!data || typeof data !== 'object') return [];
+    // data is an object: {date: {employee_id: {...}}}
+    return Object.values(data).flatMap(dateObj => Object.values(dateObj));
+  };
+
   // Calculate summary data
   const calculateSummary = (data) => {
-    if (data.length === 0) return {
+    const flatData = flattenTimeData(data);
+    if (flatData.length === 0) return {
       totalHours: "0.0",
       totalActiveHours: "0.0",
       totalBreakHours: "0.0",
@@ -192,11 +201,11 @@ export default function TimeTrackingPage() {
       absentDays: 0,
     };
     
-    const totalHours = data.reduce((sum, item) => sum + parseFloat(item.total_hours || 0), 0);
-    const totalActiveHours = data.reduce((sum, item) => sum + parseFloat(item.active_time || 0), 0);
-    const totalBreakHours = data.reduce((sum, item) => sum + parseFloat(item.break_time || 0), 0);
-    const presentDays = data.filter(item => item.status === "present").length;
-    const absentDays = data.filter(item => item.status === "absent").length;
+    const totalHours = flatData.reduce((sum, item) => sum + parseFloat(item.total_hours || 0), 0);
+    const totalActiveHours = flatData.reduce((sum, item) => sum + parseFloat(item.active_time || 0), 0);
+    const totalBreakHours = flatData.reduce((sum, item) => sum + parseFloat(item.break_time || 0), 0);
+    const presentDays = flatData.filter(item => item.status === "present").length;
+    const absentDays = flatData.filter(item => item.status === "absent").length;
     
     return {
       totalHours: totalHours.toFixed(1),
@@ -212,11 +221,12 @@ export default function TimeTrackingPage() {
 
   // Prepare chart data
   const prepareChartData = (data) => {
+    const flatData = flattenTimeData(data);
     // Group by employee name if showing all employees
     if (selectedEmployee === "all") {
       const employeeData = {};
       
-      data.forEach(item => {
+      flatData.forEach(item => {
         if (!employeeData[item.employee_name]) {
           employeeData[item.employee_name] = {
             name: item.employee_name,
@@ -237,7 +247,7 @@ export default function TimeTrackingPage() {
     else {
       const dateData = {};
       
-      data.forEach(item => {
+      flatData.forEach(item => {
         const formattedDate = new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
         
         if (!dateData[formattedDate]) {
@@ -480,7 +490,7 @@ export default function TimeTrackingPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredData.map((entry) => (
+                    {flattenTimeData(filteredData).map((entry) => (
                       <TableRow key={entry.id}>
                         <TableCell>
                           {new Date(entry.date).toLocaleDateString()}
