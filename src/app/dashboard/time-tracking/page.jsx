@@ -289,6 +289,17 @@ export default function TimeTrackingPage() {
     return `${hours}:${minutes}`;
   };
 
+  // Helper to get clock in/out from sessions
+  function getClockInOutFromSessions(sessions) {
+    if (!Array.isArray(sessions) || sessions.length === 0) return { clockIn: null, clockOut: null };
+    const first = sessions[0];
+    const last = sessions[sessions.length - 1];
+    return {
+      clockIn: first.start || null,
+      clockOut: last.end || null
+    };
+  }
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center w-full h-96">
@@ -490,27 +501,30 @@ export default function TimeTrackingPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {flattenTimeData(filteredData).map((entry) => (
-                      <TableRow key={entry.id}>
-                        <TableCell>
-                          {entry.date && !isNaN(new Date(entry.date)) 
-                            ? new Date(entry.date).toLocaleDateString() 
-                            : "N/A"}
-                        </TableCell>
-                        <TableCell>{entry.employee_name}</TableCell>
-                        <TableCell>{formatTime(entry.clock_in)}</TableCell>
-                        <TableCell>{formatTime(entry.clock_out)}</TableCell>
-                        <TableCell>{parseFloat(entry.total_hours).toFixed(1)}h</TableCell>
-                        <TableCell>{parseFloat(entry.active_time).toFixed(1)}h</TableCell>
-                        <TableCell>
-                          <Badge 
-                            variant={entry.status === "present" ? "default" : entry.status === "leave" ? "outline" : "destructive"}
-                          >
-                            {entry.status}
-                          </Badge>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {flattenTimeData(filteredData).map((entry) => {
+                      const { clockIn, clockOut } = getClockInOutFromSessions(entry.sessions);
+                      return (
+                        <TableRow key={entry.id}>
+                          <TableCell>
+                            {entry.date && !isNaN(new Date(entry.date)) 
+                              ? new Date(entry.date).toLocaleDateString() 
+                              : "N/A"}
+                          </TableCell>
+                          <TableCell>{entry.employee_name}</TableCell>
+                          <TableCell>{clockIn ? clockIn : "N/A"}</TableCell>
+                          <TableCell>{clockOut ? clockOut : "N/A"}</TableCell>
+                          <TableCell>{parseFloat(entry.total_hours).toFixed(1)}h</TableCell>
+                          <TableCell>{parseFloat(entry.active_time).toFixed(1)}h</TableCell>
+                          <TableCell>
+                            <Badge 
+                              variant={entry.status === "present" ? "default" : entry.status === "leave" ? "outline" : "destructive"}
+                            >
+                              {entry.status}
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               )}

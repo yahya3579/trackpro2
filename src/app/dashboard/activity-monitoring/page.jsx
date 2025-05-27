@@ -870,7 +870,7 @@ export default function ActivityMonitoringPage() {
                             {new Date(activity.date).toLocaleDateString()}
                           </TableCell>
                           <TableCell>
-                            {formatDateTime(activity.first_time, activity.date)} - {formatDateTime(activity.last_end_time, activity.date)}
+                            {formatDateTime(activity.first_time, activity.date)}
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">
