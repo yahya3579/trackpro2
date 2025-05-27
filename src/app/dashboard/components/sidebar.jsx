@@ -73,6 +73,11 @@ const mainItems = [
 
 const moreItems = [
   {
+    title: "Timelapse",
+    href: "/dashboard/timelapse",
+    icon: Clock
+  },
+  {
     title: "Timeline",
     href: "/dashboard/timeline",
     icon: History

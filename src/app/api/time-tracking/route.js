@@ -138,7 +138,8 @@ export async function GET(request) {
         clock_out: row.clock_out,
         status: row.status,
         organization_id: row.organization_id,
-        id: row.id
+        id: row.id,
+        date: row.date || ""
       };
     }
     

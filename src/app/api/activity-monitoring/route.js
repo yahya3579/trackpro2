@@ -165,12 +165,16 @@ export async function GET(request) {
     // Build query for application usage
     let query = `
       SELECT 
-        au.id, au.employee_id, e.employee_name, 
-        au.application_name, au.window_title, au.url,
-        au.category, au.time, au.end_time, 
-        au.duration_seconds,
-        au.date, au.productive,
-        au.created_at
+        au.employee_id, 
+        e.employee_name, 
+        au.application_name, 
+        au.category, 
+        au.window_title, 
+        au.url, 
+        au.date, 
+        SUM(au.duration_seconds) as total_duration,
+        MIN(au.time) as first_time,
+        MAX(au.end_time) as last_end_time
       FROM app_usage au
       LEFT JOIN employees e ON au.employee_id = e.id
       WHERE 1=1
@@ -236,7 +240,7 @@ export async function GET(request) {
     }
     
     // Order by date and start time
-    query += ' ORDER BY au.date DESC, au.time DESC';
+    query += ' GROUP BY au.employee_id, au.application_name, au.date ORDER BY au.date DESC, first_time DESC';
     
     console.log('Executing query:', query);
     console.log('Query params:', queryParams);

@@ -493,7 +493,9 @@ export default function TimeTrackingPage() {
                     {flattenTimeData(filteredData).map((entry) => (
                       <TableRow key={entry.id}>
                         <TableCell>
-                          {new Date(entry.date).toLocaleDateString()}
+                          {entry.date && !isNaN(new Date(entry.date)) 
+                            ? new Date(entry.date).toLocaleDateString() 
+                            : "N/A"}
                         </TableCell>
                         <TableCell>{entry.employee_name}</TableCell>
                         <TableCell>{formatTime(entry.clock_in)}</TableCell>

@@ -79,9 +79,20 @@ const formatTime = (seconds) => {
 };
 
 // Function to format date and time
-const formatDateTime = (dateTime) => {
+const formatDateTime = (dateTime, date) => {
   if (!dateTime) return "N/A";
-  return new Date(dateTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  // If time-only (e.g., '08:30:00'), combine with date if provided
+  if (/^\d{2}:\d{2}:\d{2}$/.test(dateTime) && date) {
+    // date is expected as 'YYYY-MM-DD' or Date object
+    let dateStr = typeof date === 'string' ? date : new Date(date).toISOString().split('T')[0];
+    dateTime = `${dateStr}T${dateTime}`;
+  } else if (typeof dateTime === "string" && dateTime.includes(" ") && !dateTime.endsWith("Z")) {
+    // Fix for MySQL DATETIME format: replace space with 'T'
+    dateTime = dateTime.replace(" ", "T");
+  }
+  const dateObj = new Date(dateTime);
+  if (isNaN(dateObj.getTime())) return "N/A";
+  return dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 };
 
 // Function to get category icon
@@ -117,6 +128,26 @@ const CATEGORY_COLORS = {
 
 // Colors for productivity
 const PRODUCTIVITY_COLORS = ["#ef4444", "#10b981"];
+
+// Application colors for pie chart visualization
+const APP_COLORS = [
+  "#7F56D9", // Purple
+  "#3B82F6", // Blue
+  "#10B981", // Green
+  "#F59E0B", // Orange
+  "#EC4899", // Pink
+  "#6366F1", // Indigo
+  "#14B8A6", // Teal
+  "#F97316", // Amber
+  "#8B5CF6", // Violet
+  "#06B6D4", // Cyan
+  "#84CC16", // Lime
+  "#A855F7", // Fuchsia
+  "#F43F5E", // Rose
+  "#0EA5E9", // Sky
+  "#22C55E", // Emerald
+  "#EAB308", // Yellow
+];
 
 export default function ActivityMonitoringPage() {
   const [employees, setEmployees] = useState([]);
@@ -747,52 +778,127 @@ export default function ActivityMonitoringPage() {
                   </p>
                 </div>
               ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Time</TableHead>
-                      <TableHead>Application</TableHead>
-                      <TableHead>Window Title / URL</TableHead>
-                      <TableHead>Duration</TableHead>
-                      <TableHead>Employee</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {activityData.appUsage.map((activity) => (
-                      <TableRow key={activity.id}>
-                        <TableCell>
-                          {new Date(activity.date).toLocaleDateString()}
-                        </TableCell>
-                        <TableCell>
-                          {formatDateTime(activity.start_time)} - {formatDateTime(activity.end_time)}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            {getCategoryIcon(activity.category)}
-                            <span className="font-medium">
-                              {activity.application_name}
-                            </span>
-                          </div>
-                        </TableCell>
-                        <TableCell className="max-w-[200px] truncate" title={activity.window_title}>
-                          {activity.window_title}
-                          {activity.category === 'browser' && activity.url && (
-                            <div className="text-xs text-blue-600 underline mt-1 truncate" title={activity.url}>
-                              <a href={activity.url} target="_blank" rel="noopener noreferrer">{activity.url}</a>
+                <>
+                  {/* Activity Visualization Section */}
+                  <div className="grid gap-6 md:grid-cols-2 mb-8 w-full overflow-x-auto">
+                    {/* Left: App List */}
+                    <div className="flex flex-col space-y-4 min-w-[320px]">
+                      <h3 className="text-lg font-semibold">Application Usage</h3>
+                      <div className="space-y-2 max-h-[350px] overflow-y-auto pr-4">
+                        {activityData.appUsage
+                          .reduce((unique, app) => {
+                            const existing = unique.find(item => item.application_name === app.application_name);
+                            if (!existing) {
+                              unique.push(app);
+                            }
+                            return unique;
+                          }, [])
+                          .map((app, index) => (
+                            <div 
+                              key={`app-${app.application_name}`}
+                              className="flex items-center p-2 rounded-lg"
+                              style={{ backgroundColor: `${APP_COLORS[index % APP_COLORS.length]}15` }}
+                            >
+                              <div 
+                                className="w-5 h-5 rounded-md mr-3 flex-shrink-0" 
+                                style={{ backgroundColor: APP_COLORS[index % APP_COLORS.length] }}
+                              />
+                              <div className="flex-1 font-medium">{app.application_name}</div>
+                              <Badge 
+                                variant={app.productive ? "outline" : "secondary"}
+                                className={`ml-auto ${app.productive ? "text-green-600 bg-green-50" : "text-gray-500 bg-gray-100"}`}
+                              >
+                                {app.productive ? "productive" : "neutral"}
+                              </Badge>
                             </div>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          {formatTime(activity.duration_seconds)}
-                        </TableCell>
-                        <TableCell>
-                          {activity.employee_name}
-                        </TableCell>
+                          ))}
+                      </div>
+                    </div>
+                    {/* Right: Pie Chart */}
+                    <div className="flex items-center justify-center min-w-[340px]">
+                      <div className="relative" style={{ width: 320, height: 320 }}>
+                        {activityData.appUsage.length > 0 && activityData.appUsage.some(app => Number(app.total_duration) > 0) ? (
+                          <ResponsiveContainer width={320} height={320}>
+                            <PieChart>
+                              <Pie
+                                data={activityData.appUsage.slice().sort((a, b) => b.total_duration - a.total_duration)}
+                                dataKey="total_duration"
+                                nameKey="application_name"
+                                cx="50%"
+                                cy="50%"
+                                innerRadius={60}
+                                outerRadius={100}
+                                paddingAngle={2}
+                                label={({ name, percent }) => percent > 0.08 ? `${name}` : ''}
+                                labelLine={false}
+                              >
+                                {activityData.appUsage.map((entry, index) => (
+                                  <Cell key={`cell-${index}`} fill={APP_COLORS[index % APP_COLORS.length]} />
+                                ))}
+                              </Pie>
+                              <Tooltip 
+                                formatter={(value) => formatTime(value)}
+                                labelFormatter={(name) => name}
+                              />
+                            </PieChart>
+                          </ResponsiveContainer>
+                        ) : (
+                          <div className="flex items-center justify-center mb-8 text-muted-foreground">
+                            No app usage data to display.
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Existing Activity Log Table */}
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Time</TableHead>
+                        <TableHead>Application</TableHead>
+                        <TableHead>Window Title / URL</TableHead>
+                        <TableHead>Duration</TableHead>
+                        <TableHead>Employee</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {activityData.appUsage.map((activity) => (
+                        <TableRow key={`${activity.employee_id}_${activity.application_name}_${activity.date}`}>
+                          <TableCell>
+                            {new Date(activity.date).toLocaleDateString()}
+                          </TableCell>
+                          <TableCell>
+                            {formatDateTime(activity.first_time, activity.date)} - {formatDateTime(activity.last_end_time, activity.date)}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              {getCategoryIcon(activity.category)}
+                              <span className="font-medium">
+                                {activity.application_name}
+                              </span>
+                            </div>
+                          </TableCell>
+                          <TableCell className="max-w-[200px] truncate" title={activity.window_title}>
+                            {activity.window_title}
+                            {activity.category === 'browser' && activity.url && (
+                              <div className="text-xs text-blue-600 underline mt-1 truncate" title={activity.url}>
+                                <a href={activity.url} target="_blank" rel="noopener noreferrer">{activity.url}</a>
+                              </div>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {formatTime(activity.total_duration)}
+                          </TableCell>
+                          <TableCell>
+                            {activity.employee_name}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </>
               )}
             </CardContent>
           </Card>
