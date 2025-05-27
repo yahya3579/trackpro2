@@ -247,7 +247,7 @@ export async function POST(request) {
       // Use current timestamp if not provided
       const screenshotTimestamp = timestamp || new Date().toISOString();
       // Save the URL (which might be a path to a file in the public folder)
-      const imageUrl = url;
+      const imageUrl = path.join('C:\\Users\\yahya\\OneDrive\\Desktop\\tracker\\src\\screenshot', path.basename(url));
       // Insert the screenshot into the database
       try {
         const [result] = await db.query(

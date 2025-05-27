@@ -487,102 +487,79 @@ export default function DashboardPage() {
                     <p className="text-sm text-muted-foreground">Loading productivity data...</p>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                  <div className="flex flex-col justify-center items-center">
                     {/* Pie Chart */}
-                    <div className="flex flex-col justify-center items-center">
-                      <div className="relative h-56 w-56 bg-gradient-to-br from-primary/5 to-white/80 rounded-full shadow-lg flex items-center justify-center">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <PieChart>
-                            <Pie
-                              data={[
-                                { name: 'Productive', value: productivityData?.productiveHours || 0, color: '#10b981' },
-                                { name: 'Non-Productive', value: productivityData?.totalTrackedHours - (productivityData?.productiveHours || 0) || 0, color: '#f87171' },
-                              ]}
-                              cx="50%"
-                              cy="50%"
-                              innerRadius={60}
-                              outerRadius={90}
-                              paddingAngle={3}
-                              dataKey="value"
-                              strokeWidth={2}
-                              stroke="#ffffff"
-                              onMouseLeave={() => setHoveredPieIndex(null)}
-                            >
-                              <Cell key="cell-productive" fill="#10b981" onMouseEnter={() => setHoveredPieIndex(0)} />
-                              <Cell key="cell-non-productive" fill="#f87171" onMouseEnter={() => setHoveredPieIndex(1)} />
-                            </Pie>
-                          </PieChart>
-                        </ResponsiveContainer>
-                        <div className="absolute inset-0 flex items-center justify-center flex-col pointer-events-none select-none">
-                          {hoveredPieIndex === 0 && (
-                            <>
-                              <span className="text-5xl font-extrabold text-primary drop-shadow-lg">
-                                {Math.round(productivityData?.averageProductivity || 0)}%
-                              </span>
-                              <span className="text-xs text-muted-foreground mt-1 tracking-wide">Productivity</span>
-                            </>
-                          )}
-                          {hoveredPieIndex === 1 && (
-                            <>
-                              <span className="text-5xl font-extrabold text-destructive drop-shadow-lg">
-                                {100 - Math.round(productivityData?.averageProductivity || 0)}%
-                              </span>
-                              <span className="text-xs text-muted-foreground mt-1 tracking-wide">Non-Productive</span>
-                            </>
-                          )}
-                          {hoveredPieIndex === null && (
-                            <>
-                              <span className="text-lg font-semibold text-muted-foreground">Hover chart</span>
-                              <span className="text-xs text-muted-foreground mt-1">for details</span>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                      {/* Modern Legend */}
-                      <div className="mt-6 flex justify-center gap-8">
-                        <div className="flex items-center gap-2">
-                          <span className="inline-block w-4 h-4 rounded-full bg-[#10b981] border-2 border-white shadow" />
-                          <span className="text-sm font-medium text-primary">Productive</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="inline-block w-4 h-4 rounded-full bg-[#f87171] border-2 border-white shadow" />
-                          <span className="text-sm font-medium text-destructive">Non-Productive</span>
-                        </div>
-                      </div>
-                      {/* Hours Summary */}
-                      <div className="mt-7 mb-7 flex flex-col gap-3 w-full max-w-xs bg-muted/40 rounded-xl p-4 shadow-inner">
-                        <div className="flex items-center justify-between text-sm font-semibold">
-                          <span>Productive Hours</span>
-                          <span className="text-primary">{productiveHours.toFixed(1)}h</span>
-                        </div>
-                        <Progress value={(productiveHours / (totalTrackedHours || 1)) * 100} className="h-2 bg-primary/20" />
-                        <div className="flex items-center justify-between text-sm font-semibold mt-2">
-                          <span>Non-Productive Hours</span>
-                          <span className="text-destructive">{nonProductiveHours.toFixed(1)}h</span>
-                        </div>
-                        <Progress value={(nonProductiveHours / (totalTrackedHours || 1)) * 100} className="h-2 bg-destructive/20" />
+                    <div className="relative h-56 w-56 bg-gradient-to-br from-primary/5 to-white/80 rounded-full shadow-lg flex items-center justify-center">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={[
+                              { name: 'Productive', value: productivityData?.productiveHours || 0, color: '#10b981' },
+                              { name: 'Non-Productive', value: productivityData?.totalTrackedHours - (productivityData?.productiveHours || 0) || 0, color: '#f87171' },
+                            ]}
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={60}
+                            outerRadius={90}
+                            paddingAngle={3}
+                            dataKey="value"
+                            strokeWidth={2}
+                            stroke="#ffffff"
+                            onMouseLeave={() => setHoveredPieIndex(null)}
+                          >
+                            <Cell key="cell-productive" fill="#10b981" onMouseEnter={() => setHoveredPieIndex(0)} />
+                            <Cell key="cell-non-productive" fill="#f87171" onMouseEnter={() => setHoveredPieIndex(1)} />
+                          </Pie>
+                        </PieChart>
+                      </ResponsiveContainer>
+                      <div className="absolute inset-0 flex items-center justify-center flex-col pointer-events-none select-none">
+                        {hoveredPieIndex === 0 && (
+                          <>
+                            <span className="text-5xl font-extrabold text-primary drop-shadow-lg">
+                              {Math.round(productivityData?.averageProductivity || 0)}%
+                            </span>
+                            <span className="text-xs text-muted-foreground mt-1 tracking-wide">Productivity</span>
+                          </>
+                        )}
+                        {hoveredPieIndex === 1 && (
+                          <>
+                            <span className="text-5xl font-extrabold text-destructive drop-shadow-lg">
+                              {100 - Math.round(productivityData?.averageProductivity || 0)}%
+                            </span>
+                            <span className="text-xs text-muted-foreground mt-1 tracking-wide">Non-Productive</span>
+                          </>
+                        )}
+                        {hoveredPieIndex === null && (
+                          <>
+                            <span className="text-lg font-semibold text-muted-foreground">Hover chart</span>
+                            <span className="text-xs text-muted-foreground mt-1">for details</span>
+                          </>
+                        )}
                       </div>
                     </div>
-                    {/* Productivity by Category */}
-                    <div className="flex flex-col">
-                      <h3 className="text-base font-semibold mb-5 flex items-center text-primary">
-                        <PieChartIcon className="h-4 w-4 mr-2 text-primary" />
-                        Productivity by Category
-                      </h3>
-                      <div className="space-y-5">
-                        {productivityCategories.map((category, index) => (
-                          <div key={index} className="space-y-2">
-                            <div className="flex items-center justify-between text-sm">
-                              <div className="flex items-center gap-2">
-                                <div className={`h-3 w-3 rounded-full ${category.color.replace('text-', 'bg-')} border-2 border-white shadow`} />
-                                <span className="font-medium text-foreground/90">{category.name}</span>
-                              </div>
-                              <span className="font-semibold text-primary">{category.value}%</span>
-                            </div>
-                            <Progress value={category.value} className={`h-2 ${category.color.replace('text-', 'bg-')}`} />
-                          </div>
-                        ))}
+                    {/* Modern Legend */}
+                    <div className="mt-6 flex justify-center gap-8">
+                      <div className="flex items-center gap-2">
+                        <span className="inline-block w-4 h-4 rounded-full bg-[#10b981] border-2 border-white shadow" />
+                        <span className="text-sm font-medium text-primary">Productive</span>
                       </div>
+                      <div className="flex items-center gap-2">
+                        <span className="inline-block w-4 h-4 rounded-full bg-[#f87171] border-2 border-white shadow" />
+                        <span className="text-sm font-medium text-destructive">Non-Productive</span>
+                      </div>
+                    </div>
+                    {/* Hours Summary */}
+                    <div className="mt-7 mb-7 flex flex-col gap-3 w-full max-w-xs bg-muted/40 rounded-xl p-4 shadow-inner">
+                      <div className="flex items-center justify-between text-sm font-semibold">
+                        <span>Productive Hours</span>
+                        <span className="text-primary">{productiveHours.toFixed(1)}h</span>
+                      </div>
+                      <Progress value={(productiveHours / (totalTrackedHours || 1)) * 100} className="h-2 bg-primary/20" />
+                      <div className="flex items-center justify-between text-sm font-semibold mt-2">
+                        <span>Non-Productive Hours</span>
+                        <span className="text-destructive">{nonProductiveHours.toFixed(1)}h</span>
+                      </div>
+                      <Progress value={(nonProductiveHours / (totalTrackedHours || 1)) * 100} className="h-2 bg-destructive/20" />
                     </div>
                   </div>
                 )}

@@ -511,7 +511,7 @@ export default function ScreenshotsPage() {
             </DialogHeader>
             <div className="relative aspect-video overflow-hidden rounded-md">
               <Image
-                src={selectedImage.url}
+                src={`/api/screenshot-file?name=${encodeURIComponent(selectedImage.url.split('/').pop())}`}
                 alt={`Screenshot of ${getEmployeeName(selectedImage.employee_id)}'s screen`}
                 className="object-contain"
                 fill
@@ -588,7 +588,7 @@ function ScreenshotCard({ screenshot, employeeName, initials, formatDate, onView
         ) : (
           <>
             <Image
-              src={screenshot.url}
+              src={`/api/screenshot-file?name=${encodeURIComponent(screenshot.url.split('/').pop())}`}
               alt={`Screenshot of ${employeeName}'s screen`}
               className="object-cover transition-transform duration-300 group-hover:scale-105"
               fill
