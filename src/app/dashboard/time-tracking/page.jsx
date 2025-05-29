@@ -445,24 +445,32 @@ export default function TimeTrackingPage() {
                   Breakdown of active vs. break time
                 </CardDescription>
               </CardHeader>
-              <CardContent className="h-80">
-                <ResponsiveContainer width="100%" height="100%">
+              <CardContent className="h-80 flex items-center justify-center">
+                <ResponsiveContainer width="100%" height={320}>
                   <PieChart>
                     <Pie
                       data={timeDistributionData}
                       cx="50%"
                       cy="50%"
+                      innerRadius={60}
+                      outerRadius={100}
+                      paddingAngle={2}
+                      label={({ name, percent }) => percent > 0.08 ? `${name}` : ''}
                       labelLine={false}
-                      outerRadius={80}
-                      fill="#8884d8"
                       dataKey="value"
-                      label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                      nameKey="name"
                     >
                       {timeDistributionData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        <Cell
+                          key={`cell-${index}`}
+                          fill={entry.name === 'Active Time' ? '#10b981' : entry.name === 'Break Time' ? '#ef4444' : '#8884d8'}
+                        />
                       ))}
                     </Pie>
-                    <Tooltip />
+                    <Tooltip 
+                      formatter={(value, name, props) => [value + 'h', name]}
+                      labelFormatter={(name) => name}
+                    />
                   </PieChart>
                 </ResponsiveContainer>
               </CardContent>

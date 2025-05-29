@@ -26,6 +26,7 @@ export default function MyWork() {
   const [appUsageData, setAppUsageData] = useState([]);
   const [productivityData, setProductivityData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [appUsageTab, setAppUsageTab] = useState("all"); // NEW: track selected tab
 
   // Get token from localStorage
   const getToken = () => {
@@ -150,7 +151,7 @@ export default function MyWork() {
       acc[key] = {
         name: key,
         duration: 0,
-        productive: item.productive,
+        productive: Number(item.productive),
         category: item.category || "other",
       };
     }
@@ -162,6 +163,16 @@ export default function MyWork() {
   const sortedAppUsage = Object.values(appUsageSummary).sort(
     (a, b) => b.duration - a.duration
   );
+
+  // Filtered app usage based on selected tab
+  let filteredAppUsage = sortedAppUsage;
+  if (appUsageTab === "productive") {
+    filteredAppUsage = sortedAppUsage.filter((app) => app.productive === 1);
+  } else if (appUsageTab === "nonProductive") {
+    filteredAppUsage = sortedAppUsage.filter((app) => app.productive === 0);
+  }
+  // Always sort by duration descending
+  filteredAppUsage = filteredAppUsage.sort((a, b) => b.duration - a.duration);
 
   return (
     <div className="space-y-6">
@@ -217,60 +228,6 @@ export default function MyWork() {
         </div>
       ) : (
         <div className="grid gap-6">
-          {/* Time Tracking Summary */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <Clock className="mr-2 h-5 w-5" />
-                Time Tracking
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {timeTrackingData && timeTrackingData[0] ? (
-                  <>
-                    <div className="flex flex-col gap-1">
-                      <span className="text-sm text-gray-500">Clock In</span>
-                      <span className="text-lg font-medium">
-                        {timeTrackingData[0].clock_in
-                          ? typeof timeTrackingData[0].clock_in === 'string' && !timeTrackingData[0].clock_in.includes('T')
-                            ? timeTrackingData[0].clock_in.substring(0, 5) // Extract HH:MM from time string
-                            : new Date(timeTrackingData[0].clock_in).toLocaleTimeString([], {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              })
-                          : "N/A"}
-                      </span>
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      <span className="text-sm text-gray-500">Clock Out</span>
-                      <span className="text-lg font-medium">
-                        {timeTrackingData[0].clock_out
-                          ? typeof timeTrackingData[0].clock_out === 'string' && !timeTrackingData[0].clock_out.includes('T')
-                            ? timeTrackingData[0].clock_out.substring(0, 5) // Extract HH:MM from time string
-                            : new Date(timeTrackingData[0].clock_out).toLocaleTimeString([], {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              })
-                          : "N/A"}
-                      </span>
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      <span className="text-sm text-gray-500">Total Hours</span>
-                      <span className="text-lg font-medium">
-                        {timeTrackingData[0].total_hours || 0} hours
-                      </span>
-                    </div>
-                  </>
-                ) : (
-                  <div className="col-span-3 text-center text-gray-500">
-                    No time tracking data available for the selected date range.
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
           {/* Productivity Summary */}
           <Card>
             <CardHeader>
@@ -335,82 +292,36 @@ export default function MyWork() {
             <CardContent>
               {sortedAppUsage && sortedAppUsage.length > 0 ? (
                 <div className="space-y-6">
-                  <Tabs defaultValue="all">
+                  <Tabs value={appUsageTab} onValueChange={setAppUsageTab} defaultValue="all">
                     <TabsList>
                       <TabsTrigger value="all">All</TabsTrigger>
                       <TabsTrigger value="productive">Productive</TabsTrigger>
-                      <TabsTrigger value="nonProductive">
-                        Non-Productive
-                      </TabsTrigger>
+                      <TabsTrigger value="nonProductive">Non-Productive</TabsTrigger>
                     </TabsList>
-                    <TabsContent value="all" className="space-y-4 mt-4">
-                      <div className="space-y-2">
-                        {sortedAppUsage.map((app, index) => (
-                          <div
-                            key={index}
-                            className="flex justify-between items-center border-b pb-2"
-                          >
-                            <div className="flex items-center gap-2">
-                              <div
-                                className={`w-3 h-3 rounded-full ${
-                                  app.productive === 1
-                                    ? "bg-green-500"
-                                    : "bg-red-500"
-                                }`}
-                              />
-                              <span className="font-medium">{app.name}</span>
-                              <span className="text-xs text-gray-500">
-                                {app.category}
-                              </span>
-                            </div>
-                            <span>{formatTime(app.duration)}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </TabsContent>
-                    <TabsContent value="productive" className="space-y-4 mt-4">
-                      <div className="space-y-2">
-                        {sortedAppUsage
-                          .filter((app) => app.productive === 1)
-                          .map((app, index) => (
-                            <div
-                              key={index}
-                              className="flex justify-between items-center border-b pb-2"
-                            >
-                              <div className="flex items-center gap-2">
-                                <div className="w-3 h-3 rounded-full bg-green-500" />
-                                <span className="font-medium">{app.name}</span>
-                                <span className="text-xs text-gray-500">
-                                  {app.category}
-                                </span>
-                              </div>
-                              <span>{formatTime(app.duration)}</span>
-                            </div>
-                          ))}
-                      </div>
-                    </TabsContent>
-                    <TabsContent value="nonProductive" className="space-y-4 mt-4">
-                      <div className="space-y-2">
-                        {sortedAppUsage
-                          .filter((app) => app.productive === 0)
-                          .map((app, index) => (
-                            <div
-                              key={index}
-                              className="flex justify-between items-center border-b pb-2"
-                            >
-                              <div className="flex items-center gap-2">
-                                <div className="w-3 h-3 rounded-full bg-red-500" />
-                                <span className="font-medium">{app.name}</span>
-                                <span className="text-xs text-gray-500">
-                                  {app.category}
-                                </span>
-                              </div>
-                              <span>{formatTime(app.duration)}</span>
-                            </div>
-                          ))}
-                      </div>
-                    </TabsContent>
                   </Tabs>
+                  <div className="space-y-4 mt-4">
+                    {filteredAppUsage.map((app, index) => (
+                      <div
+                        key={index}
+                        className="flex justify-between items-center border-b pb-2"
+                      >
+                        <div className="flex items-center gap-2">
+                          <div
+                            className={`w-3 h-3 rounded-full ${
+                              app.productive === 1
+                                ? "bg-green-500"
+                                : "bg-red-500"
+                            }`}
+                          />
+                          <span className="font-medium">{app.name}</span>
+                          <span className="text-xs text-gray-500">
+                            {app.category}
+                          </span>
+                        </div>
+                        <span>{formatTime(app.duration)}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               ) : (
                 <div className="text-center text-gray-500">

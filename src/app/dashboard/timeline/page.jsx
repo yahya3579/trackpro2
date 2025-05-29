@@ -35,6 +35,25 @@ const CATEGORY_COLORS = {
   other: "#6b7280",
 };
 
+const APP_COLORS = [
+  "#7F56D9", // Purple
+  "#3B82F6", // Blue
+  "#10B981", // Green
+  "#F59E0B", // Orange
+  "#EC4899", // Pink
+  "#6366F1", // Indigo
+  "#14B8A6", // Teal
+  "#F97316", // Amber
+  "#8B5CF6", // Violet
+  "#06B6D4", // Cyan
+  "#84CC16", // Lime
+  "#A855F7", // Fuchsia
+  "#F43F5E", // Rose
+  "#0EA5E9", // Sky
+  "#22C55E", // Emerald
+  "#EAB308", // Yellow
+];
+
 const TIME_RANGES = [
   { value: "today", label: "Today" },
   { value: "week", label: "This Week" },
@@ -200,7 +219,7 @@ export default function TimelinePage() {
               </div>
             ) : (
               <div className="space-y-5">
-                {categorySummaryData.map((category) => (
+                {categorySummaryData.map((category, index) => (
                   <div key={category.name} className="space-y-2">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
@@ -214,7 +233,7 @@ export default function TimelinePage() {
                         className="h-full rounded-full"
                         style={{
                           width: `${(category.value / categorySummaryData[0].value) * 100}%`,
-                          background: CATEGORY_COLORS[category.name] || CATEGORY_COLORS.other
+                          background: APP_COLORS[index % APP_COLORS.length]
                         }}
                       />
                     </div>

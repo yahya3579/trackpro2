@@ -10,7 +10,7 @@ export async function GET(request) {
     return NextResponse.json({ error: 'No filename provided' }, { status: 400 });
   }
 
-  const filePath = path.join('C:\\Users\\Yahya\\Desktop\\Tracking\\Tracker\\src\\screenshot', name);
+  const filePath = path.join('C:\\Users\\Yahya\\Onedrive\\Desktop\\Tracking\\Tracker\\src\\screenshot', name);
 
   if (!fs.existsSync(filePath)) {
     return NextResponse.json({ error: 'File not found' }, { status: 404 });

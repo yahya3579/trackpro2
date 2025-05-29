@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   BarChart,
   Bar,
@@ -81,6 +81,13 @@ const formatTime = (seconds) => {
 // Function to format date and time
 const formatDateTime = (dateTime, date) => {
   if (!dateTime) return "N/A";
+  
+  // If it's just a time string in format HH:MM:SS or HH:MM
+  if (/^\d{2}:\d{2}(:\d{2})?$/.test(dateTime)) {
+    // Return only hours and minutes
+    return dateTime.substring(0, 5);
+  }
+  
   // If time-only (e.g., '08:30:00'), combine with date if provided
   if (/^\d{2}:\d{2}:\d{2}$/.test(dateTime) && date) {
     // date is expected as 'YYYY-MM-DD' or Date object
@@ -91,7 +98,7 @@ const formatDateTime = (dateTime, date) => {
     dateTime = dateTime.replace(" ", "T");
   }
   const dateObj = new Date(dateTime);
-  if (isNaN(dateObj.getTime())) return "N/A";
+  if (isNaN(dateObj.getTime())) return dateTime; // Return original if parsing fails
   return dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 };
 
@@ -161,6 +168,9 @@ export default function ActivityMonitoringPage() {
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [isLoading, setIsLoading] = useState(true);
   const [viewMode, setViewMode] = useState("overview");
+  const [hoveredApp, setHoveredApp] = useState(null);
+  const [tooltipPos, setTooltipPos] = useState({ left: 0, top: 0 });
+  const progressBarRef = useRef(null);
 
   useEffect(() => {
     fetchEmployees();
@@ -261,8 +271,13 @@ export default function ActivityMonitoringPage() {
       }
 
       const data = await response.json();
+      // Sanitize appUsage data
+      const sanitizedAppUsage = (data.appUsage || []).map(app => ({
+        ...app,
+        total_duration: Number(app.total_duration) || 0, // Ensure total_duration is a number
+      }));
       setActivityData({
-        appUsage: data.appUsage || [],
+        appUsage: sanitizedAppUsage,
         appSummary: data.appSummary || [],
         productivityStats: data.productivityStats || []
       });
@@ -537,7 +552,7 @@ export default function ActivityMonitoringPage() {
                       {appSummaryData.map((entry, index) => (
                         <Badge
                           key={`${entry.name}-${index}`}
-                          style={{ background: CATEGORY_COLORS[entry.category] || CATEGORY_COLORS.other, color: '#fff' }}
+                          style={{ background: APP_COLORS[index % APP_COLORS.length], color: '#fff' }}
                           className="rounded px-2 py-1 text-xs font-medium shadow"
                         >
                           {entry.name}
@@ -594,7 +609,7 @@ export default function ActivityMonitoringPage() {
                           {appSummaryData.map((entry, index) => (
                             <Cell
                               key={`cell-${index}`}
-                              fill={CATEGORY_COLORS[entry.category] || CATEGORY_COLORS.other}
+                              fill={APP_COLORS[index % APP_COLORS.length]}
                             />
                           ))}
                         </Bar>
@@ -613,25 +628,20 @@ export default function ActivityMonitoringPage() {
                   Time spent on productive vs non-productive apps
                 </CardDescription>
               </CardHeader>
-              <CardContent className="h-[350px]">
-                <ResponsiveContainer width="100%" height="100%">
+              <CardContent className="h-[350px] flex items-center justify-center">
+                <ResponsiveContainer width="100%" height={320}>
                   <PieChart>
                     <Pie
                       data={productivityData}
                       cx="50%"
                       cy="50%"
+                      innerRadius={60}
+                      outerRadius={100}
+                      paddingAngle={2}
+                      label={({ name, percent }) => percent > 0.08 ? `${name}` : ''}
                       labelLine={false}
-                      outerRadius={120}
-                      fill="#8884d8"
                       dataKey="value"
-                      label={({ name, percent }) => (
-                        <tspan style={{
-                          fill: name === 'Productive' ? '#10b981' : name === 'Non-productive' ? '#ef4444' : '#222',
-                          fontWeight: 600
-                        }}>
-                          {`${name}: ${(percent * 100).toFixed(0)}%`}
-                        </tspan>
-                      )}
+                      nameKey="name"
                     >
                       {productivityData.map((entry, index) => (
                         <Cell
@@ -640,7 +650,10 @@ export default function ActivityMonitoringPage() {
                         />
                       ))}
                     </Pie>
-                    <Tooltip formatter={(value, name, props) => [props.payload.formattedTime, name]} />
+                    <Tooltip 
+                      formatter={(value, name, props) => [props.payload.formattedTime, name]}
+                      labelFormatter={(name) => name}
+                    />
                   </PieChart>
                 </ResponsiveContainer>
               </CardContent>
@@ -666,7 +679,7 @@ export default function ActivityMonitoringPage() {
                 </div>
               ) : (
                 <div className="space-y-5">
-                  {categorySummaryData.map((category) => (
+                  {categorySummaryData.map((category, index) => (
                     <div key={category.name} className="space-y-2">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
@@ -680,7 +693,7 @@ export default function ActivityMonitoringPage() {
                           className="h-full rounded-full"
                           style={{ 
                             width: `${(category.value / categorySummaryData[0].value) * 100}%`,
-                            background: CATEGORY_COLORS[category.name] || CATEGORY_COLORS.other
+                            background: APP_COLORS[index % APP_COLORS.length]
                           }}
                         />
                       </div>
@@ -720,41 +733,127 @@ export default function ActivityMonitoringPage() {
                   </p>
                 </div>
               ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Application</TableHead>
-                      <TableHead>Category</TableHead>
-                      <TableHead>Usage Time</TableHead>
-                      <TableHead>Usage Count</TableHead>
-                      <TableHead>Status</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {activityData.appSummary.map((app, index) => (
-                      <TableRow key={`${app.application_name}-${index}`}>
-                        <TableCell>
-                          <div className="font-medium">{app.application_name}</div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            {getCategoryIcon(app.category)}
-                            <span className="capitalize">{app.category}</span>
+                <>
+                  {/* Application Usage Progress Bar */}
+                  <div className="mb-8 space-y-4">
+                    <div className="flex justify-between items-center">
+                      <h3 className="text-sm font-medium">Usage Distribution</h3>
+                      <span className="text-xs text-muted-foreground">{calculateTotalTime()}</span>
+                    </div>
+                    <div
+                      className="w-full h-4 bg-gray-100 rounded-full overflow-hidden flex relative"
+                      ref={progressBarRef}
+                    >
+                      {activityData.appSummary
+                        .sort((a, b) => b.total_duration - a.total_duration)
+                        .slice(0, 10)
+                        .map((app, index) => {
+                          const totalTime = activityData.appSummary.reduce((sum, app) => sum + parseInt(app.total_duration || 0), 0);
+                          const percentage = totalTime > 0 ? (app.total_duration / totalTime) * 100 : 0;
+                          return (
+                            <div
+                              key={`progress-${app.application_name}-${index}`}
+                              className="h-full cursor-pointer"
+                              style={{
+                                width: `${percentage}%`,
+                                minWidth: '12px',
+                                backgroundColor: APP_COLORS[index % APP_COLORS.length],
+                              }}
+                              onMouseEnter={e => {
+                                if (progressBarRef.current) {
+                                  const barRect = progressBarRef.current.getBoundingClientRect();
+                                  setTooltipPos({
+                                    left: e.clientX - barRect.left,
+                                    top: -8,
+                                  });
+                                  setHoveredApp({
+                                    name: app.application_name,
+                                    time: formatTime(app.total_duration),
+                                  });
+                                }
+                              }}
+                              onMouseMove={e => {
+                                if (progressBarRef.current) {
+                                  const barRect = progressBarRef.current.getBoundingClientRect();
+                                  setTooltipPos({
+                                    left: e.clientX - barRect.left,
+                                    top: -8,
+                                  });
+                                }
+                              }}
+                              onMouseLeave={() => setHoveredApp(null)}
+                            />
+                          );
+                        })}
+                      {hoveredApp && (
+                        <div
+                          className="absolute z-50 px-3 py-1 rounded bg-white border shadow text-xs font-medium pointer-events-none"
+                          style={{ left: tooltipPos.left, top: tooltipPos.top - 32, transform: 'translateX(-50%)' }}
+                        >
+                          <div>{hoveredApp.name}</div>
+                          <div className="text-muted-foreground">{hoveredApp.time}</div>
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap gap-3 mt-2">
+                      {activityData.appSummary
+                        .sort((a, b) => b.total_duration - a.total_duration)
+                        .slice(0, 10)
+                        .map((app, index) => (
+                          <div key={`legend-${app.application_name}-${index}`} className="flex items-center gap-1.5">
+                            <div 
+                              className="w-3 h-3 rounded-sm" 
+                              style={{ backgroundColor: APP_COLORS[index % APP_COLORS.length] }} 
+                            />
+                            <span className="text-xs font-medium">{app.application_name}</span>
+                            <span className="text-xs text-muted-foreground">({formatTime(app.total_duration)})</span>
                           </div>
-                        </TableCell>
-                        <TableCell>{formatTime(app.total_duration)}</TableCell>
-                        <TableCell>{app.usage_count}</TableCell>
-                        <TableCell>
-                          <Badge 
-                            variant={app.productive ? "default" : "destructive"}
-                          >
-                            {app.productive ? "Productive" : "Non-productive"}
-                          </Badge>
-                        </TableCell>
+                        ))}
+                    </div>
+                  </div>
+
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Application</TableHead>
+                        <TableHead>Category</TableHead>
+                        <TableHead>Usage Time</TableHead>
+                        <TableHead>Usage Count</TableHead>
+                        <TableHead>Status</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {activityData.appSummary.map((app, index) => (
+                        <TableRow key={`${app.application_name}-${index}`}>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <div 
+                                className="w-3 h-3 rounded-sm flex-shrink-0" 
+                                style={{ backgroundColor: APP_COLORS[index % APP_COLORS.length] }} 
+                              />
+                              <div className="font-medium">{app.application_name}</div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              {getCategoryIcon(app.category)}
+                              <span className="capitalize">{app.category}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell>{formatTime(app.total_duration)}</TableCell>
+                          <TableCell>{app.usage_count}</TableCell>
+                          <TableCell>
+                            <Badge 
+                              variant={app.productive ? "default" : "destructive"}
+                            >
+                              {app.productive ? "Productive" : "Non-productive"}
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </>
               )}
             </CardContent>
           </Card>
@@ -804,54 +903,68 @@ export default function ActivityMonitoringPage() {
                                 style={{ backgroundColor: APP_COLORS[index % APP_COLORS.length] }}
                               />
                               <div className="flex-1 font-medium">{app.application_name}</div>
-                              <Badge 
-                                variant={app.productive ? "outline" : "secondary"}
-                                className={`ml-auto ${app.productive ? "text-green-600 bg-green-50" : "text-gray-500 bg-gray-100"}`}
-                              >
-                                {app.productive ? "productive" : "neutral"}
-                              </Badge>
+                              {app.productive && (
+                                <Badge 
+                                  variant="outline"
+                                  className="ml-auto text-green-600 bg-green-50"
+                                >
+                                  productive
+                                </Badge>
+                              )}
                             </div>
                           ))}
                       </div>
                     </div>
                     {/* Right: Pie Chart */}
                     <div className="flex items-center justify-center min-w-[340px]">
-                      <div className="relative" style={{ width: 320, height: 320 }}>
-                        {activityData.appUsage.length > 0 && activityData.appUsage.some(app => Number(app.total_duration) > 0) ? (
-                          <ResponsiveContainer width={320} height={320}>
-                            <PieChart>
-                              <Pie
-                                data={activityData.appUsage.slice().sort((a, b) => b.total_duration - a.total_duration)}
-                                dataKey="total_duration"
-                                nameKey="application_name"
-                                cx="50%"
-                                cy="50%"
-                                innerRadius={60}
-                                outerRadius={100}
-                                paddingAngle={2}
-                                label={({ name, percent }) => percent > 0.08 ? `${name}` : ''}
-                                labelLine={false}
-                              >
-                                {activityData.appUsage.map((entry, index) => (
-                                  <Cell key={`cell-${index}`} fill={APP_COLORS[index % APP_COLORS.length]} />
-                                ))}
-                              </Pie>
-                              <Tooltip 
-                                formatter={(value) => formatTime(value)}
-                                labelFormatter={(name) => name}
-                              />
-                            </PieChart>
-                          </ResponsiveContainer>
+                      <ResponsiveContainer width="100%" height={320}>
+                        {activityData.appUsage.length > 0 ? (
+                          <PieChart>
+                            <Pie
+                              data={activityData.appUsage.reduce((acc, app) => {
+                                const existing = acc.find(item => item.application_name === app.application_name);
+                                if (existing) {
+                                  existing.total_duration = Number(existing.total_duration) + Number(app.total_duration);
+                                } else {
+                                  acc.push({ ...app, total_duration: Number(app.total_duration) });
+                                }
+                                return acc;
+                              }, []).sort((a, b) => b.total_duration - a.total_duration)}
+                              dataKey="total_duration"
+                              nameKey="application_name"
+                              cx="50%"
+                              cy="50%"
+                              innerRadius={60}
+                              outerRadius={100}
+                              paddingAngle={2}
+                              label={({ name, percent }) => percent > 0.08 ? `${name}` : ''}
+                              labelLine={false}
+                            >
+                              {activityData.appUsage.reduce((acc, app) => {
+                                const existing = acc.find(item => item.application_name === app.application_name);
+                                if (!existing) {
+                                  acc.push(app);
+                                }
+                                return acc;
+                              }, []).sort((a, b) => b.total_duration - a.total_duration).map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={APP_COLORS[index % APP_COLORS.length]} />
+                              ))}
+                            </Pie>
+                            <Tooltip 
+                              formatter={(value) => formatTime(value)}
+                              labelFormatter={(name) => name}
+                            />
+                          </PieChart>
                         ) : (
                           <div className="flex items-center justify-center mb-8 text-muted-foreground">
                             No app usage data to display.
                           </div>
                         )}
-                      </div>
+                      </ResponsiveContainer>
                     </div>
                   </div>
 
-                  {/* Existing Activity Log Table */}
+                  {/* Activity Log Table */}
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -870,7 +983,7 @@ export default function ActivityMonitoringPage() {
                             {new Date(activity.date).toLocaleDateString()}
                           </TableCell>
                           <TableCell>
-                            {formatDateTime(activity.first_time, activity.date)}
+                            {formatDateTime(activity.time || activity.first_time, activity.date)}
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">
@@ -906,4 +1019,4 @@ export default function ActivityMonitoringPage() {
       </Tabs>
     </div>
   );
-} 
+}

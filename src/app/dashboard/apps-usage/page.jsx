@@ -59,6 +59,26 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
+// Add APP_COLORS array at the top (copy from activity-monitoring)
+const APP_COLORS = [
+  "#7F56D9", // Purple
+  "#3B82F6", // Blue
+  "#10B981", // Green
+  "#F59E0B", // Orange
+  "#EC4899", // Pink
+  "#6366F1", // Indigo
+  "#14B8A6", // Teal
+  "#F97316", // Amber
+  "#8B5CF6", // Violet
+  "#06B6D4", // Cyan
+  "#84CC16", // Lime
+  "#A855F7", // Fuchsia
+  "#F43F5E", // Rose
+  "#0EA5E9", // Sky
+  "#22C55E", // Emerald
+  "#EAB308", // Yellow
+];
+
 // Function to format seconds into readable time
 const formatTime = (seconds) => {
   if (!seconds) return "0h 0m";
@@ -458,7 +478,7 @@ export default function AppUsagePage() {
                 {appSummaryData.map((entry, index) => (
                   <Badge
                     key={`${entry.name}-${index}`}
-                    style={{ background: CATEGORY_COLORS[entry.category] || CATEGORY_COLORS.other, color: '#fff' }}
+                    style={{ background: APP_COLORS[index % APP_COLORS.length], color: '#fff' }}
                     className="rounded px-2 py-1 text-xs font-medium shadow"
                   >
                     {entry.name}
@@ -515,7 +535,7 @@ export default function AppUsagePage() {
                     {appSummaryData.map((entry, index) => (
                       <Cell
                         key={`cell-${index}`}
-                        fill={CATEGORY_COLORS[entry.category] || CATEGORY_COLORS.other}
+                        fill={APP_COLORS[index % APP_COLORS.length]}
                       />
                     ))}
                   </Bar>
@@ -570,7 +590,13 @@ export default function AppUsagePage() {
                 {appData.appSummary.map((app, index) => (
                   <TableRow key={`${app.application_name}-${index}`}>
                     <TableCell>
-                      <div className="font-medium">{app.application_name}</div>
+                      <div className="flex items-center gap-2">
+                        <span
+                          className="w-3 h-3 rounded-full inline-block"
+                          style={{ backgroundColor: APP_COLORS[index % APP_COLORS.length] }}
+                        />
+                        <span className="font-medium">{app.application_name}</span>
+                      </div>
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
@@ -593,7 +619,7 @@ export default function AppUsagePage() {
             </Table>
           ) : (
             <div className="space-y-5">
-              {categorySummaryData.map((category) => (
+              {categorySummaryData.map((category, index) => (
                 <div key={category.name} className="space-y-2">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
@@ -603,11 +629,11 @@ export default function AppUsagePage() {
                     <span className="text-sm text-muted-foreground">{category.formattedTime}</span>
                   </div>
                   <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
-                    <div 
+                    <div
                       className="h-full rounded-full"
-                      style={{ 
+                      style={{
                         width: `${(category.value / categorySummaryData[0].value) * 100}%`,
-                        background: CATEGORY_COLORS[category.name] || CATEGORY_COLORS.other
+                        background: APP_COLORS[index % APP_COLORS.length]
                       }}
                     />
                   </div>
