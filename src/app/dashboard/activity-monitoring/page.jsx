@@ -753,47 +753,15 @@ export default function ActivityMonitoringPage() {
                           return (
                             <div
                               key={`progress-${app.application_name}-${index}`}
-                              className="h-full cursor-pointer"
+                              className="h-full"
                               style={{
                                 width: `${percentage}%`,
                                 minWidth: '12px',
                                 backgroundColor: APP_COLORS[index % APP_COLORS.length],
                               }}
-                              onMouseEnter={e => {
-                                if (progressBarRef.current) {
-                                  const barRect = progressBarRef.current.getBoundingClientRect();
-                                  setTooltipPos({
-                                    left: e.clientX - barRect.left,
-                                    top: -8,
-                                  });
-                                  setHoveredApp({
-                                    name: app.application_name,
-                                    time: formatTime(app.total_duration),
-                                  });
-                                }
-                              }}
-                              onMouseMove={e => {
-                                if (progressBarRef.current) {
-                                  const barRect = progressBarRef.current.getBoundingClientRect();
-                                  setTooltipPos({
-                                    left: e.clientX - barRect.left,
-                                    top: -8,
-                                  });
-                                }
-                              }}
-                              onMouseLeave={() => setHoveredApp(null)}
                             />
                           );
                         })}
-                      {hoveredApp && (
-                        <div
-                          className="absolute z-50 px-3 py-1 rounded bg-white border shadow text-xs font-medium pointer-events-none"
-                          style={{ left: tooltipPos.left, top: tooltipPos.top - 32, transform: 'translateX(-50%)' }}
-                        >
-                          <div>{hoveredApp.name}</div>
-                          <div className="text-muted-foreground">{hoveredApp.time}</div>
-                        </div>
-                      )}
                     </div>
                     <div className="flex flex-wrap gap-3 mt-2">
                       {activityData.appSummary
