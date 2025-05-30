@@ -127,13 +127,46 @@ export async function GET(request) {
     // Transform to nested structure: { [date]: { [employee_id]: { ... } } }
     const nested = {};
     for (const row of timeData) {
+      // Parse sessions
+      const sessions = row.sessions ? JSON.parse(row.sessions) : [];
+      // Calculate active_time, total_hours, and break_time from sessions
+      let activeTime = 0;
+      let totalHours = 0;
+      let breakTime = 0;
+      // Sort sessions by start time
+      const sortedSessions = sessions.slice().sort((a, b) => (a.start > b.start ? 1 : -1));
+      if (sortedSessions.length > 0) {
+        // Calculate active time (sum of all session durations)
+        for (let i = 0; i < sortedSessions.length; i++) {
+          const session = sortedSessions[i];
+          if (session.start && session.end) {
+            const start = session.start.split(":");
+            const end = session.end.split(":");
+            const startSeconds = (+start[0]) * 3600 + (+start[1]) * 60 + (+start[2] || 0);
+            const endSeconds = (+end[0]) * 3600 + (+end[1]) * 60 + (+end[2] || 0);
+            activeTime += Math.max(0, endSeconds - startSeconds) / 3600;
+          }
+        }
+        // Calculate total hours (last end - first start)
+        const first = sortedSessions[0];
+        const last = sortedSessions[sortedSessions.length - 1];
+        if (first.start && last.end) {
+          const firstStart = first.start.split(":");
+          const lastEnd = last.end.split(":");
+          const firstStartSeconds = (+firstStart[0]) * 3600 + (+firstStart[1]) * 60 + (+firstStart[2] || 0);
+          const lastEndSeconds = (+lastEnd[0]) * 3600 + (+lastEnd[1]) * 60 + (+lastEnd[2] || 0);
+          totalHours = Math.max(0, lastEndSeconds - firstStartSeconds) / 3600;
+        }
+        // Calculate break time (total hours - active time)
+        breakTime = Math.max(0, totalHours - activeTime);
+      }
       if (!nested[row.date]) nested[row.date] = {};
       nested[row.date][row.employee_id] = {
         employee_name: row.employee_name,
-        sessions: row.sessions ? JSON.parse(row.sessions) : [],
-        total_hours: row.total_hours,
-        active_time: row.active_time,
-        break_time: row.break_time,
+        sessions: sessions,
+        total_hours: totalHours.toFixed(2),
+        active_time: activeTime.toFixed(2),
+        break_time: breakTime.toFixed(2),
         clock_in: row.clock_in,
         clock_out: row.clock_out,
         status: row.status,

@@ -248,6 +248,32 @@ export async function GET(request) {
     // Execute query
     const [appUsage] = await db.query(query, queryParams);
     
+    // For each appUsage entry, if it's a browser, get URL breakdown
+    for (const app of appUsage) {
+      if (app.category === 'browser') {
+        // Query for URL details for this app, employee, and date
+        const [urlDetails] = await db.query(`
+          SELECT 
+            url, 
+            SUM(duration_seconds) as total_duration,
+            COUNT(*) as usage_count,
+            GROUP_CONCAT(DISTINCT window_title SEPARATOR ' ||| ') as window_titles
+          FROM app_usage
+          WHERE employee_id = ? AND application_name = ? AND date = ? AND url IS NOT NULL AND url != ''
+          GROUP BY url
+          ORDER BY total_duration DESC
+        `, [app.employee_id, app.application_name, app.date]);
+        app.url_details = urlDetails.map(row => ({
+          url: row.url,
+          total_duration: Number(row.total_duration),
+          usage_count: row.usage_count,
+          window_titles: row.window_titles ? row.window_titles.split(' ||| ') : []
+        }));
+      } else {
+        app.url_details = [];
+      }
+    }
+    
     console.log(`Found ${appUsage.length} app usage records`);
     
     // Get summary by application

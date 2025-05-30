@@ -156,6 +156,18 @@ const APP_COLORS = [
   "#EAB308", // Yellow
 ];
 
+// Consistent color assignment for each app name
+const getAppColor = (appName) => {
+  if (!appName) return APP_COLORS[0];
+  // Simple hash function to map app name to a color index
+  let hash = 0;
+  for (let i = 0; i < appName.length; i++) {
+    hash = appName.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const index = Math.abs(hash) % APP_COLORS.length;
+  return APP_COLORS[index];
+};
+
 export default function ActivityMonitoringPage() {
   const [employees, setEmployees] = useState([]);
   const [activityData, setActivityData] = useState({
@@ -552,7 +564,7 @@ export default function ActivityMonitoringPage() {
                       {appSummaryData.map((entry, index) => (
                         <Badge
                           key={`${entry.name}-${index}`}
-                          style={{ background: APP_COLORS[index % APP_COLORS.length], color: '#fff' }}
+                          style={{ background: getAppColor(entry.name), color: '#fff' }}
                           className="rounded px-2 py-1 text-xs font-medium shadow"
                         >
                           {entry.name}
@@ -609,7 +621,7 @@ export default function ActivityMonitoringPage() {
                           {appSummaryData.map((entry, index) => (
                             <Cell
                               key={`cell-${index}`}
-                              fill={APP_COLORS[index % APP_COLORS.length]}
+                              fill={getAppColor(entry.name)}
                             />
                           ))}
                         </Bar>
@@ -693,7 +705,7 @@ export default function ActivityMonitoringPage() {
                           className="h-full rounded-full"
                           style={{ 
                             width: `${(category.value / categorySummaryData[0].value) * 100}%`,
-                            background: APP_COLORS[index % APP_COLORS.length]
+                            background: getAppColor(category.name)
                           }}
                         />
                       </div>
@@ -757,7 +769,7 @@ export default function ActivityMonitoringPage() {
                               style={{
                                 width: `${percentage}%`,
                                 minWidth: '12px',
-                                backgroundColor: APP_COLORS[index % APP_COLORS.length],
+                                backgroundColor: getAppColor(app.application_name),
                               }}
                             />
                           );
@@ -771,7 +783,7 @@ export default function ActivityMonitoringPage() {
                           <div key={`legend-${app.application_name}-${index}`} className="flex items-center gap-1.5">
                             <div 
                               className="w-3 h-3 rounded-sm" 
-                              style={{ backgroundColor: APP_COLORS[index % APP_COLORS.length] }} 
+                              style={{ backgroundColor: getAppColor(app.application_name) }} 
                             />
                             <span className="text-xs font-medium">{app.application_name}</span>
                             <span className="text-xs text-muted-foreground">({formatTime(app.total_duration)})</span>
@@ -797,7 +809,7 @@ export default function ActivityMonitoringPage() {
                             <div className="flex items-center gap-2">
                               <div 
                                 className="w-3 h-3 rounded-sm flex-shrink-0" 
-                                style={{ backgroundColor: APP_COLORS[index % APP_COLORS.length] }} 
+                                style={{ backgroundColor: getAppColor(app.application_name) }} 
                               />
                               <div className="font-medium">{app.application_name}</div>
                             </div>
@@ -864,11 +876,11 @@ export default function ActivityMonitoringPage() {
                             <div 
                               key={`app-${app.application_name}`}
                               className="flex items-center p-2 rounded-lg"
-                              style={{ backgroundColor: `${APP_COLORS[index % APP_COLORS.length]}15` }}
+                              style={{ backgroundColor: `${getAppColor(app.application_name)}15` }}
                             >
                               <div 
                                 className="w-5 h-5 rounded-md mr-3 flex-shrink-0" 
-                                style={{ backgroundColor: APP_COLORS[index % APP_COLORS.length] }}
+                                style={{ backgroundColor: getAppColor(app.application_name) }}
                               />
                               <div className="flex-1 font-medium">{app.application_name}</div>
                               {app.productive && (
@@ -915,12 +927,66 @@ export default function ActivityMonitoringPage() {
                                 }
                                 return acc;
                               }, []).sort((a, b) => b.total_duration - a.total_duration).map((entry, index) => (
-                                <Cell key={`cell-${index}`} fill={APP_COLORS[index % APP_COLORS.length]} />
+                                <Cell key={`cell-${index}`} fill={getAppColor(entry.application_name)} />
                               ))}
                             </Pie>
-                            <Tooltip 
-                              formatter={(value) => formatTime(value)}
-                              labelFormatter={(name) => name}
+                            <Tooltip
+                              content={({ active, payload, label }) => {
+                                if (!active || !payload || !payload.length) return null;
+                                const app = payload[0].payload;
+                                // If browser and url_details exist, show enhanced URL breakdown (without showing the URL itself)
+                                if (app.category === 'browser' && Array.isArray(app.url_details) && app.url_details.length > 0) {
+                                  return (
+                                    <div className="rounded-xl border bg-white p-4 shadow-xl min-w-[250px] max-w-[400px] text-[13px]">
+                                      <div className="font-bold text-base mb-2 flex items-center gap-2">
+                                        <span className='inline-block w-3 h-3 rounded-full' style={{background: getAppColor(app.application_name)}}></span>
+                                        {app.application_name}
+                                      </div>
+                                      <div className="mb-2 text-xs text-blue-700 font-semibold tracking-wide uppercase">Session Details</div>
+                                      <div className="divide-y divide-gray-200">
+                                        {app.url_details.map((url, idx) => (
+                                          <div key={idx} className="py-2 first:pt-0 last:pb-0">
+                                            <div className="flex items-center gap-2 mb-1">
+                                              <span className="inline-flex items-center gap-1 text-green-700 font-semibold">
+                                                <svg width="14" height="14" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="#10b981" opacity="0.15"/><path d="M8 12l2 2 4-4" stroke="#10b981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                                                <span>Time:</span>
+                                                <span>{formatTime(url.total_duration)}</span>
+                                              </span>
+                                              <span className="inline-flex items-center gap-1 text-orange-600 font-semibold">
+                                                <svg width="14" height="14" fill="none" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="8" fill="#f59e0b" opacity="0.15"/><path d="M12 8v4l2 2" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                                                <span>Count:</span>
+                                                <span>{url.usage_count}x</span>
+                                              </span>
+                                            </div>
+                                            {url.window_titles && url.window_titles.length > 0 && (
+                                              <div className="mt-1">
+                                                <div className="font-medium text-gray-700 mb-1 flex items-center gap-1">
+                                                  <svg width="14" height="14" fill="none" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2" fill="#3b82f6" opacity="0.12"/><rect x="3" y="5" width="18" height="14" rx="2" stroke="#3b82f6" strokeWidth="1.5"/></svg>
+                                                  Window Titles
+                                                </div>
+                                                <ul className="list-disc ml-5 space-y-0.5">
+                                                  {url.window_titles.map((title, i) => (
+                                                    <li key={i} className="truncate max-w-[320px] text-gray-600 bg-gray-50 rounded px-2 py-0.5 border border-gray-100 shadow-sm">
+                                                      {title}
+                                                    </li>
+                                                  ))}
+                                                </ul>
+                                              </div>
+                                            )}
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  );
+                                }
+                                // Default info for non-browser or no url_details
+                                return (
+                                  <div className="rounded-lg border bg-white p-3 shadow-md min-w-[180px]">
+                                    <div className="font-semibold mb-1">{app.application_name}</div>
+                                    <div className="text-xs text-muted-foreground">Time: {formatTime(app.total_duration)}</div>
+                                  </div>
+                                );
+                              }}
                             />
                           </PieChart>
                         ) : (
