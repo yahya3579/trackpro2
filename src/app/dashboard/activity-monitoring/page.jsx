@@ -934,52 +934,7 @@ export default function ActivityMonitoringPage() {
                               content={({ active, payload, label }) => {
                                 if (!active || !payload || !payload.length) return null;
                                 const app = payload[0].payload;
-                                // If browser and url_details exist, show enhanced URL breakdown (without showing the URL itself)
-                                if (app.category === 'browser' && Array.isArray(app.url_details) && app.url_details.length > 0) {
-                                  return (
-                                    <div className="rounded-xl border bg-white p-4 shadow-xl min-w-[250px] max-w-[400px] text-[13px]">
-                                      <div className="font-bold text-base mb-2 flex items-center gap-2">
-                                        <span className='inline-block w-3 h-3 rounded-full' style={{background: getAppColor(app.application_name)}}></span>
-                                        {app.application_name}
-                                      </div>
-                                      <div className="mb-2 text-xs text-blue-700 font-semibold tracking-wide uppercase">Session Details</div>
-                                      <div className="divide-y divide-gray-200">
-                                        {app.url_details.map((url, idx) => (
-                                          <div key={idx} className="py-2 first:pt-0 last:pb-0">
-                                            <div className="flex items-center gap-2 mb-1">
-                                              <span className="inline-flex items-center gap-1 text-green-700 font-semibold">
-                                                <svg width="14" height="14" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="#10b981" opacity="0.15"/><path d="M8 12l2 2 4-4" stroke="#10b981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                                                <span>Time:</span>
-                                                <span>{formatTime(url.total_duration)}</span>
-                                              </span>
-                                              <span className="inline-flex items-center gap-1 text-orange-600 font-semibold">
-                                                <svg width="14" height="14" fill="none" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="8" fill="#f59e0b" opacity="0.15"/><path d="M12 8v4l2 2" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                                                <span>Count:</span>
-                                                <span>{url.usage_count}x</span>
-                                              </span>
-                                            </div>
-                                            {url.window_titles && url.window_titles.length > 0 && (
-                                              <div className="mt-1">
-                                                <div className="font-medium text-gray-700 mb-1 flex items-center gap-1">
-                                                  <svg width="14" height="14" fill="none" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2" fill="#3b82f6" opacity="0.12"/><rect x="3" y="5" width="18" height="14" rx="2" stroke="#3b82f6" strokeWidth="1.5"/></svg>
-                                                  Window Titles
-                                                </div>
-                                                <ul className="list-disc ml-5 space-y-0.5">
-                                                  {url.window_titles.map((title, i) => (
-                                                    <li key={i} className="truncate max-w-[320px] text-gray-600 bg-gray-50 rounded px-2 py-0.5 border border-gray-100 shadow-sm">
-                                                      {title}
-                                                    </li>
-                                                  ))}
-                                                </ul>
-                                              </div>
-                                            )}
-                                          </div>
-                                        ))}
-                                      </div>
-                                    </div>
-                                  );
-                                }
-                                // Default info for non-browser or no url_details
+                                // Remove session details for browser, always show default info
                                 return (
                                   <div className="rounded-lg border bg-white p-3 shadow-md min-w-[180px]">
                                     <div className="font-semibold mb-1">{app.application_name}</div>
@@ -996,6 +951,78 @@ export default function ActivityMonitoringPage() {
                         )}
                       </ResponsiveContainer>
                     </div>
+                  </div>
+
+                  {/* Browser Tab/URL Usage Pie Chart (No Labels) */}
+                  <div className="mt-10">
+                    <h3 className="text-lg font-semibold mb-4 text-center">Browser Tab/URL Usage</h3>
+                    <ResponsiveContainer width="100%" height={320}>
+                      {(() => {
+                        // Aggregate all url_details from browser apps only
+                        const urlMap = {};
+                        activityData.appUsage.forEach(app => {
+                          if (app.category === 'browser' && Array.isArray(app.url_details)) {
+                            app.url_details.forEach(urlObj => {
+                              const urlKey = urlObj.url || urlObj.window_titles?.[0] || 'Unknown';
+                              if (!urlMap[urlKey]) {
+                                urlMap[urlKey] = {
+                                  url: urlObj.url || urlKey,
+                                  window_titles: urlObj.window_titles || [],
+                                  total_duration: 0,
+                                  usage_count: 0,
+                                };
+                              }
+                              urlMap[urlKey].total_duration += Number(urlObj.total_duration) || 0;
+                              urlMap[urlKey].usage_count += Number(urlObj.usage_count) || 0;
+                            });
+                          }
+                        });
+                        const urlData = Object.values(urlMap).sort((a, b) => b.total_duration - a.total_duration);
+                        if (urlData.length === 0) {
+                          return (
+                            <div className="flex items-center justify-center mb-8 text-muted-foreground">
+                              No browser tab/url data to display.
+                            </div>
+                          );
+                        }
+                        return (
+                          <PieChart>
+                            <Pie
+                              data={urlData}
+                              dataKey="total_duration"
+                              nameKey="url"
+                              cx="50%"
+                              cy="50%"
+                              innerRadius={60}
+                              outerRadius={100}
+                              paddingAngle={2}
+                              label={() => ''}
+                              labelLine={false}
+                            >
+                              {urlData.map((entry, index) => (
+                                <Cell key={`cell-url-${index}`} fill={APP_COLORS[index % APP_COLORS.length]} />
+                              ))}
+                            </Pie>
+                            <Tooltip
+                              content={({ active, payload }) => {
+                                if (!active || !payload || !payload.length) return null;
+                                const urlObj = payload[0].payload;
+                                return (
+                                  <div className="rounded-lg border bg-white p-3 shadow-md min-w-[220px] max-w-[350px]">
+                                    <div className="font-semibold mb-1 truncate" title={urlObj.url}>{urlObj.url}</div>
+                                    {urlObj.window_titles && urlObj.window_titles.length > 0 && (
+                                      <div className="text-xs text-muted-foreground mb-1 truncate" title={urlObj.window_titles[0]}>Tab: {urlObj.window_titles[0]}</div>
+                                    )}
+                                    <div className="text-xs">Time: <span className="font-medium">{formatTime(urlObj.total_duration)}</span></div>
+                                    <div className="text-xs">Switch Count: <span className="font-medium">{urlObj.usage_count}</span></div>
+                                  </div>
+                                );
+                              }}
+                            />
+                          </PieChart>
+                        );
+                      })()}
+                    </ResponsiveContainer>
                   </div>
 
                   {/* Activity Log Table */}
