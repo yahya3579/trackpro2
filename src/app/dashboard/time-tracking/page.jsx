@@ -509,30 +509,32 @@ export default function TimeTrackingPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {flattenTimeData(filteredData).map((entry) => {
-                      const { clockIn, clockOut } = getClockInOutFromSessions(entry.sessions);
-                      return (
-                        <TableRow key={entry.id}>
-                          <TableCell>
-                            {entry.date && !isNaN(new Date(entry.date)) 
-                              ? new Date(entry.date).toLocaleDateString() 
-                              : "N/A"}
-                          </TableCell>
-                          <TableCell>{entry.employee_name}</TableCell>
-                          <TableCell>{clockIn ? clockIn : "N/A"}</TableCell>
-                          <TableCell>{clockOut ? clockOut : "N/A"}</TableCell>
-                          <TableCell>{parseFloat(entry.total_hours).toFixed(1)}h</TableCell>
-                          <TableCell>{parseFloat(entry.active_time).toFixed(1)}h</TableCell>
-                          <TableCell>
-                            <Badge 
-                              variant={entry.status === "present" ? "default" : entry.status === "leave" ? "outline" : "destructive"}
-                            >
-                              {entry.status}
-                            </Badge>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
+                    {flattenTimeData(filteredData)
+                      .filter(entry => parseFloat(entry.total_hours) > 0)
+                      .map((entry) => {
+                        const { clockIn, clockOut } = getClockInOutFromSessions(entry.sessions);
+                        return (
+                          <TableRow key={entry.id}>
+                            <TableCell>
+                              {entry.date && !isNaN(new Date(entry.date)) 
+                                ? new Date(entry.date).toLocaleDateString() 
+                                : "N/A"}
+                            </TableCell>
+                            <TableCell>{entry.employee_name}</TableCell>
+                            <TableCell>{clockIn ? clockIn : "N/A"}</TableCell>
+                            <TableCell>{clockOut ? clockOut : "N/A"}</TableCell>
+                            <TableCell>{parseFloat(entry.total_hours).toFixed(1)}h</TableCell>
+                            <TableCell>{parseFloat(entry.active_time).toFixed(1)}h</TableCell>
+                            <TableCell>
+                              <Badge 
+                                variant={entry.status === "present" ? "default" : entry.status === "leave" ? "outline" : "destructive"}
+                              >
+                                {entry.status}
+                              </Badge>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
                   </TableBody>
                 </Table>
               )}
