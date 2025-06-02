@@ -2,18 +2,22 @@
 
 import { useState, useEffect } from "react";
 import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
   PieChart,
   Pie,
   Cell,
+  ResponsiveContainer,
+  Tooltip,
 } from "recharts";
+import { Bar } from 'react-chartjs-2';
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title,
+  Tooltip as ChartJsTooltip,
+  Legend as ChartJsLegend,
+} from 'chart.js';
 import {
   Card,
   CardContent,
@@ -63,6 +67,8 @@ import { toast } from "sonner";
 //   title: "Time Tracking | TrackPro",
 //   description: "View chronological employee activity timeline",
 // };
+
+ChartJS.register(CategoryScale, LinearScale, BarElement, Title, ChartJsTooltip, ChartJsLegend);
 
 export default function TimeTrackingPage() {
   const [employees, setEmployees] = useState([]);
@@ -326,6 +332,7 @@ export default function TimeTrackingPage() {
               <SelectItem value="today">Today</SelectItem>
               <SelectItem value="week">This Week</SelectItem>
               <SelectItem value="month">This Month</SelectItem>
+              <SelectItem value="all">All Time</SelectItem>
             </SelectContent>
           </Select>
 
@@ -423,18 +430,96 @@ export default function TimeTrackingPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="h-80">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" />
-                    <YAxis label={{ value: 'Hours', angle: -90, position: 'insideLeft' }} />
-                    <Tooltip />
-                    <Legend />
-                    <Bar dataKey="totalHours" name="Total Hours" fill="#4f46e5" />
-                    <Bar dataKey="activeTime" name="Active Time" fill="#06b6d4" />
-                    <Bar dataKey="breakTime" name="Break Time" fill="#f97316" />
-                  </BarChart>
-                </ResponsiveContainer>
+                <div className="h-72 w-full">
+                  <Bar
+                    data={{
+                      labels: chartData.map(item => item.name),
+                      datasets: [
+                        {
+                          label: 'Total Hours',
+                          data: chartData.map(item => item.totalHours),
+                          backgroundColor: '#4f46e5',
+                          stack: 'Stack 0',
+                        },
+                        {
+                          label: 'Active Time',
+                          data: chartData.map(item => item.activeTime),
+                          backgroundColor: '#06b6d4',
+                          stack: 'Stack 0',
+                        },
+                        {
+                          label: 'Break Time',
+                          data: chartData.map(item => item.breakTime),
+                          backgroundColor: '#f97316',
+                          stack: 'Stack 0',
+                        },
+                      ],
+                    }}
+                    options={{
+                      responsive: true,
+                      maintainAspectRatio: false,
+                      plugins: {
+                        legend: {
+                          display: true,
+                          position: 'top',
+                          labels: {
+                            color: '#222',
+                            font: { size: 13, weight: 'bold' },
+                          },
+                        },
+                        title: {
+                          display: false,
+                        },
+                        tooltip: {
+                          backgroundColor: '#fff',
+                          titleColor: '#222',
+                          bodyColor: '#222',
+                          borderColor: '#e5e7eb',
+                          borderWidth: 1,
+                          callbacks: {
+                            label: function(context) {
+                              return `${context.dataset.label}: ${context.parsed.y || context.parsed.x}h`;
+                            }
+                          }
+                        },
+                      },
+                      scales: {
+                        x: {
+                          stacked: true,
+                          grid: {
+                            color: '#e5e7eb',
+                          },
+                          title: {
+                            display: true,
+                            text: selectedEmployee === "all" ? 'Employee' : 'Date',
+                            color: '#888',
+                            font: { size: 13, weight: 'bold' },
+                          },
+                          ticks: {
+                            color: '#888',
+                            font: { size: 12 },
+                          },
+                        },
+                        y: {
+                          stacked: true,
+                          grid: {
+                            color: '#f3f4f6',
+                          },
+                          title: {
+                            display: true,
+                            text: 'Hours',
+                            color: '#888',
+                            font: { size: 13, weight: 'bold' },
+                          },
+                          ticks: {
+                            color: '#222',
+                            font: { size: 13, weight: 'bold' },
+                          },
+                        },
+                      },
+                    }}
+                  />
+                </div>
               </CardContent>
             </Card>
 

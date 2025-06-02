@@ -233,9 +233,18 @@ export default function SuperAdminDashboard() {
               <div className="space-y-4">
                 {stats?.recent_organizations?.slice(0, 5).map((org) => (
                   <div key={org.id} className="flex items-center space-x-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
-                      {org.name.charAt(0).toUpperCase()}
-                    </div>
+                    {org.logo ? (
+                      <img
+                        src={org.logo}
+                        alt={org.name}
+                        className="h-10 w-10 rounded-full object-cover bg-muted"
+                        onError={e => { e.target.onerror = null; e.target.src = ''; }}
+                      />
+                    ) : (
+                      <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary font-bold text-lg">
+                        {org.name.charAt(0).toUpperCase()}
+                      </div>
+                    )}
                     <div className="space-y-0.5 flex-1">
                       <p className="font-medium">{org.name}</p>
                       <div className="flex items-center text-sm text-muted-foreground">
