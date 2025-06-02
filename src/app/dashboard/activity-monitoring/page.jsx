@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import {
   BarChart,
   Bar,
@@ -283,15 +283,19 @@ export default function ActivityMonitoringPage() {
       }
 
       const data = await response.json();
-      // Sanitize appUsage data
+      // Sanitize appUsage and appSummary data
       const sanitizedAppUsage = (data.appUsage || []).map(app => ({
         ...app,
-        total_duration: Number(app.total_duration) || 0, // Ensure total_duration is a number
+        total_duration: Number(app.total_duration) || 0,
+      }));
+      const sanitizedAppSummary = (data.appSummary || []).map(app => ({
+        ...app,
+        total_duration: Number(app.total_duration) || 0,
       }));
       setActivityData({
         appUsage: sanitizedAppUsage,
-        appSummary: data.appSummary || [],
-        productivityStats: data.productivityStats || []
+        appSummary: sanitizedAppSummary,
+        productivityStats: data.productivityStats || [],
       });
       setIsLoading(false);
     } catch (error) {
@@ -303,8 +307,7 @@ export default function ActivityMonitoringPage() {
 
   // Prepare app usage summary data for charts
   const prepareAppSummaryData = () => {
-    // Sort by total duration and take top 10
-    return activityData.appSummary
+    const data = activityData.appSummary
       .sort((a, b) => b.total_duration - a.total_duration)
       .slice(0, 10)
       .map(app => ({
@@ -313,11 +316,14 @@ export default function ActivityMonitoringPage() {
         category: app.category,
         productive: app.productive,
         usage_count: app.usage_count,
-        formattedTime: formatTime(app.total_duration)
+        formattedTime: formatTime(app.total_duration),
+        total_duration: Number(app.total_duration) || 0,
       }));
+    console.log('Prepared appSummaryData:', data); // Debug log
+    return data;
   };
 
-  const appSummaryData = prepareAppSummaryData();
+  const appSummaryData = useMemo(() => prepareAppSummaryData(), [activityData.appSummary]);
 
   // Prepare category summary data
   const prepareCategorySummaryData = () => {
@@ -589,7 +595,7 @@ export default function ActivityMonitoringPage() {
                         <YAxis
                           type="category"
                           dataKey="name"
-                          width={90}
+                          width= {90}
                           axisLine={false}
                           tickLine={false}
                           tick={{ fontSize: 13, fill: '#222' }}
@@ -756,39 +762,33 @@ export default function ActivityMonitoringPage() {
                       className="w-full h-4 bg-gray-100 rounded-full overflow-hidden flex relative"
                       ref={progressBarRef}
                     >
-                      {activityData.appSummary
-                        .sort((a, b) => b.total_duration - a.total_duration)
-                        .slice(0, 10)
-                        .map((app, index) => {
-                          const totalTime = activityData.appSummary.reduce((sum, app) => sum + parseInt(app.total_duration || 0), 0);
-                          const percentage = totalTime > 0 ? (app.total_duration / totalTime) * 100 : 0;
-                          return (
-                            <div
-                              key={`progress-${app.application_name}-${index}`}
-                              className="h-full"
-                              style={{
-                                width: `${percentage}%`,
-                                minWidth: '12px',
-                                backgroundColor: getAppColor(app.application_name),
-                              }}
-                            />
-                          );
-                        })}
+                      {appSummaryData.map((app, index) => {
+                        const totalTime = appSummaryData.reduce((sum, app) => sum + parseInt(app.total_duration || 0), 0);
+                        const percentage = totalTime > 0 ? (app.total_duration / totalTime) * 100 : 0;
+                        return (
+                          <div
+                            key={`progress-${app.name}-${index}`}
+                            className="h-full"
+                            style={{
+                              width: `${percentage}%`,
+                              minWidth: '12px',
+                              backgroundColor: getAppColor(app.name),
+                            }}
+                          />
+                        );
+                      })}
                     </div>
                     <div className="flex flex-wrap gap-3 mt-2">
-                      {activityData.appSummary
-                        .sort((a, b) => b.total_duration - a.total_duration)
-                        .slice(0, 10)
-                        .map((app, index) => (
-                          <div key={`legend-${app.application_name}-${index}`} className="flex items-center gap-1.5">
-                            <div 
-                              className="w-3 h-3 rounded-sm" 
-                              style={{ backgroundColor: getAppColor(app.application_name) }} 
-                            />
-                            <span className="text-xs font-medium">{app.application_name}</span>
-                            <span className="text-xs text-muted-foreground">({formatTime(app.total_duration)})</span>
-                          </div>
-                        ))}
+                      {appSummaryData.map((app, index) => (
+                        <div key={`legend-${app.name}-${index}`} className="flex items-center gap-1.5">
+                          <div 
+                            className="w-3 h-3 rounded-sm" 
+                            style={{ backgroundColor: getAppColor(app.name) }} 
+                          />
+                          <span className="text-xs font-medium">{app.name}</span>
+                          <span className="text-xs text-muted-foreground">({formatTime(app.total_duration)})</span>
+                        </div>
+                      ))}
                     </div>
                   </div>
 
@@ -896,22 +896,14 @@ export default function ActivityMonitoringPage() {
                       </div>
                     </div>
                     {/* Right: Pie Chart */}
-                    <div className="flex items-center justify-center min-w-[340px]">
+                    <div className="flex items-center justify-center min-w-[340px] h-[320px]">
                       <ResponsiveContainer width="100%" height={320}>
-                        {activityData.appUsage.length > 0 ? (
+                        {appSummaryData.length > 0 ? (
                           <PieChart>
                             <Pie
-                              data={activityData.appUsage.reduce((acc, app) => {
-                                const existing = acc.find(item => item.application_name === app.application_name);
-                                if (existing) {
-                                  existing.total_duration = Number(existing.total_duration) + Number(app.total_duration);
-                                } else {
-                                  acc.push({ ...app, total_duration: Number(app.total_duration) });
-                                }
-                                return acc;
-                              }, []).sort((a, b) => b.total_duration - a.total_duration)}
+                              data={appSummaryData}
                               dataKey="total_duration"
-                              nameKey="application_name"
+                              nameKey="name"
                               cx="50%"
                               cy="50%"
                               innerRadius={60}
@@ -920,24 +912,17 @@ export default function ActivityMonitoringPage() {
                               label={({ name, percent }) => percent > 0.08 ? `${name}` : ''}
                               labelLine={false}
                             >
-                              {activityData.appUsage.reduce((acc, app) => {
-                                const existing = acc.find(item => item.application_name === app.application_name);
-                                if (!existing) {
-                                  acc.push(app);
-                                }
-                                return acc;
-                              }, []).sort((a, b) => b.total_duration - a.total_duration).map((entry, index) => (
-                                <Cell key={`cell-${index}`} fill={getAppColor(entry.application_name)} />
+                              {appSummaryData.map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={getAppColor(entry.name)} />
                               ))}
                             </Pie>
                             <Tooltip
-                              content={({ active, payload, label }) => {
+                              content={({ active, payload }) => {
                                 if (!active || !payload || !payload.length) return null;
                                 const app = payload[0].payload;
-                                // Remove session details for browser, always show default info
                                 return (
                                   <div className="rounded-lg border bg-white p-3 shadow-md min-w-[180px]">
-                                    <div className="font-semibold mb-1">{app.application_name}</div>
+                                    <div className="font-semibold mb-1">{app.name}</div>
                                     <div className="text-xs text-muted-foreground">Time: {formatTime(app.total_duration)}</div>
                                   </div>
                                 );
@@ -945,8 +930,9 @@ export default function ActivityMonitoringPage() {
                             />
                           </PieChart>
                         ) : (
-                          <div className="flex items-center justify-center mb-8 text-muted-foreground">
-                            No app usage data to display.
+                          <div className="flex flex-col items-center justify-center mb-8 text-muted-foreground">
+                            <AlertCircle className="h-12 w-12 mb-2" />
+                            <span>No app usage data to display for the selected filters.</span>
                           </div>
                         )}
                       </ResponsiveContainer>

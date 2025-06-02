@@ -9,7 +9,7 @@ async function handleGet(request, { params }) {
     
     // Query the database to get organization data
     const [organizations] = await db.query(
-      'SELECT id, name, email, logo FROM organizations WHERE id = ?',
+      'SELECT id, name, email, logo, created_at FROM organizations WHERE id = ?',
       [id]
     );
     
@@ -25,7 +25,8 @@ async function handleGet(request, { params }) {
         id: organization.id,
         name: organization.name,
         email: organization.email,
-        photoUrl: organization.logo
+        photoUrl: organization.logo,
+        createdAt: organization.created_at
       }
     });
   } catch (error) {

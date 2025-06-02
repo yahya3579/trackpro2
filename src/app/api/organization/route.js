@@ -18,6 +18,69 @@ async function handleGet(request) {
     const limit = parseInt(searchParams.get('limit') || '10');
     const page = parseInt(searchParams.get('page') || '1');
     const offset = (page - 1) * limit;
+    const statsOnly = searchParams.get('stats_only') === 'true';
+    const statsMonthly = searchParams.get('stats_monthly') === 'true';
+    
+    // If stats_only is true, return organization stats
+    if (statsOnly) {
+      // Get total count of organizations
+      const [orgCountResult] = await db.query(
+        `SELECT COUNT(*) as total_organizations FROM organizations`
+      );
+      
+      // Get total count of employees
+      const [empCountResult] = await db.query(
+        `SELECT COUNT(*) as total_employees FROM employees`
+      );
+      
+      // Get organization with most employees
+      const [topOrgResult] = await db.query(
+        `SELECT o.name, COUNT(e.id) as employee_count 
+         FROM organizations o
+         JOIN employees e ON o.id = e.organization_id
+         GROUP BY o.id
+         ORDER BY employee_count DESC
+         LIMIT 1`
+      );
+      
+      // Get recent organizations
+      const [recentOrgs] = await db.query(
+        `SELECT id, name, email, created_at
+         FROM organizations
+         ORDER BY created_at DESC
+         LIMIT 5`
+      );
+      
+      return NextResponse.json({
+        total_organizations: orgCountResult[0].total_organizations,
+        total_employees: empCountResult[0].total_employees,
+        top_organization: topOrgResult.length > 0 ? {
+          name: topOrgResult[0].name,
+          employee_count: topOrgResult[0].employee_count
+        } : null,
+        recent_organizations: recentOrgs.map(org => ({
+          id: org.id,
+          name: org.name,
+          email: org.email,
+          created_at: org.created_at
+        }))
+      });
+    }
+    
+    // If stats_monthly is true, return count of organizations created per month for the last 12 months
+    if (statsMonthly) {
+      // Get count of organizations created per month for the last 12 months
+      const [rows] = await db.query(`
+        SELECT DATE_FORMAT(created_at, '%Y-%m') as month, COUNT(*) as count
+        FROM organizations
+        WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 12 MONTH)
+        GROUP BY month
+        ORDER BY month ASC
+      `);
+      return NextResponse.json({
+        monthly: rows
+      });
+    }
     
     // Search condition
     const searchCondition = search ? 
@@ -29,10 +92,11 @@ async function handleGet(request) {
     
     // Query organizations with pagination
     const [organizations] = await db.query(
-      `SELECT id, name, email, photo_url, created_at
-       FROM organizations
+      `SELECT o.id, o.name, o.email, o.logo, o.created_at,
+         (SELECT COUNT(*) FROM employees WHERE organization_id = o.id) as employee_count
+       FROM organizations o
        ${searchCondition}
-       ORDER BY created_at DESC
+       ORDER BY o.created_at DESC
        LIMIT ? OFFSET ?`,
       [...searchQueryParams, limit, offset]
     );
@@ -53,8 +117,9 @@ async function handleGet(request) {
         id: org.id,
         name: org.name,
         email: org.email,
-        photoUrl: org.photo_url,
-        createdAt: org.created_at
+        photoUrl: org.logo,
+        createdAt: org.created_at,
+        employeeCount: org.employee_count || 0
       })),
       pagination: {
         total,

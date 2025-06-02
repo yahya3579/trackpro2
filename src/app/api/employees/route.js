@@ -25,13 +25,24 @@ export async function GET(request) {
       }, { status: 401 });
     }
     
+    // Get query parameters
+    const { searchParams } = new URL(request.url);
+    const status = searchParams.get('status');
+    const department = searchParams.get('department');
+    const organizationId = searchParams.get('organization_id');
+    const includeOrganizationInfo = searchParams.get('include_organization_info') === 'true';
+    const search = searchParams.get('search');
+    
     // Get organization ID based on user role
-    let organizationId = null;
+    let filterOrgId = null;
     const isSuperAdmin = decodedToken.role && decodedToken.role.toLowerCase().replace(/\s/g, '_') === 'super_admin';
+    
     if (isSuperAdmin) {
-      organizationId = null;
+      // Super admin can see all employees or filter by organization
+      filterOrgId = organizationId || null;
     } else if (decodedToken.role === 'organization_admin') {
-      organizationId = decodedToken.id;
+      // Organization admins can only see their own employees
+      filterOrgId = decodedToken.id;
     } else if (decodedToken.id) {
       // For employees, get their organization ID
       const [userRecord] = await db.query(
@@ -40,7 +51,7 @@ export async function GET(request) {
       );
       
       if (userRecord.length > 0) {
-        organizationId = userRecord[0].organization_id;
+        filterOrgId = userRecord[0].organization_id;
       } else {
         // Try to get it from employees table
         const [employeeRecord] = await db.query(
@@ -49,7 +60,7 @@ export async function GET(request) {
         );
         
         if (employeeRecord.length > 0) {
-          organizationId = employeeRecord[0].organization_id;
+          filterOrgId = employeeRecord[0].organization_id;
         }
       }
     }
@@ -68,11 +79,6 @@ export async function GET(request) {
       console.error('Error checking employees table:', tableError);
     }
     
-    // Get query parameters if needed
-    const { searchParams } = new URL(request.url);
-    const status = searchParams.get('status');
-    const department = searchParams.get('department');
-    
     // Check table structure (optional)
     let columns = [];
     try {
@@ -84,44 +90,68 @@ export async function GET(request) {
     }
     
     // Build query based on available columns
-    let selectColumns = 'id';
+    let selectColumns = 'e.id';
     
     // These are the columns we want
     const wantedColumns = [
-        'id', 'employee_name', 'email', 'role', 'team_name', 'status', 'joined_date'
+        'employee_name', 'email', 'role', 'team_name', 'status', 'joined_date', 'organization_id'
     ];
     
     // Include only columns that exist in the table
     const availableColumns = wantedColumns.filter(col => columns.includes(col));
     
     if (availableColumns.length > 0) {
-      selectColumns += ', ' + availableColumns.join(', ');
+      selectColumns += ', e.' + availableColumns.join(', e.');
+    }
+    
+    // Include organization info if requested
+    let joinClause = '';
+    if (includeOrganizationInfo) {
+      selectColumns += ', o.name as organization_name, o.email as organization_email';
+      joinClause = 'LEFT JOIN organizations o ON e.organization_id = o.id';
     }
     
     // Build query
     let query = `
       SELECT ${selectColumns}
-      FROM employees
+      FROM employees e
+      ${joinClause}
     `;
     
     // Add filters if provided
     const queryParams = [];
     const conditions = [];
     
-    // Always filter by organization ID if available
-    if (!isSuperAdmin && organizationId && columns.includes('organization_id')) {
-      conditions.push('organization_id = ?');
-      queryParams.push(organizationId);
+    // Always filter by organization ID if available for non-super admins
+    if (!isSuperAdmin && filterOrgId && columns.includes('organization_id')) {
+      conditions.push('e.organization_id = ?');
+      queryParams.push(filterOrgId);
+    } else if (isSuperAdmin && filterOrgId && columns.includes('organization_id')) {
+      // Super admin with organization filter
+      conditions.push('e.organization_id = ?');
+      queryParams.push(filterOrgId);
     }
     
     if (status && columns.includes('status')) {
-      conditions.push('status = ?');
+      conditions.push('e.status = ?');
       queryParams.push(status);
     }
     
     if (department && columns.includes('department')) {
-      conditions.push('department = ?');
+      conditions.push('e.department = ?');
       queryParams.push(department);
+    }
+
+    // Add search filter
+    if (search && (columns.includes('employee_name') || columns.includes('email'))) {
+      const searchConds = [];
+      if (columns.includes('employee_name')) searchConds.push('e.employee_name LIKE ?');
+      if (columns.includes('email')) searchConds.push('e.email LIKE ?');
+      if (searchConds.length > 0) {
+        conditions.push('(' + searchConds.join(' OR ') + ')');
+        queryParams.push(`%${search}%`.toLowerCase());
+        if (searchConds.length > 1) queryParams.push(`%${search}%`.toLowerCase());
+      }
     }
     
     if (conditions.length > 0) {
@@ -130,9 +160,9 @@ export async function GET(request) {
     
     // Order by created_at if it exists, otherwise by id
     if (columns.includes('created_at')) {
-      query += ' ORDER BY created_at DESC';
+      query += ' ORDER BY e.created_at DESC';
     } else {
-      query += ' ORDER BY id DESC';
+      query += ' ORDER BY e.id DESC';
     }
     
     console.log('Executing query:', query);

@@ -15,6 +15,38 @@ export async function POST(request) {
       return NextResponse.json({ message: 'Email and password are required' }, { status: 400 });
     }
 
+    // Check if this is the super admin login
+    const [admins] = await db.query('SELECT * FROM super_admins WHERE email = ? LIMIT 1', [email]);
+    if (admins.length > 0) {
+      const admin = admins[0];
+      console.log('Login attempt:', email, password);
+      console.log('DB email:', admin.email);
+      console.log('DB hash:', admin.password);
+      const isPasswordMatch = await bcrypt.compare(password, admin.password);
+      console.log('Password match:', isPasswordMatch);
+      if (!isPasswordMatch) {
+        return NextResponse.json({ message: 'Invalid credentials' }, { status: 401 });
+      }
+      // Generate token for super admin
+      const token = jwt.sign(
+        { id: admin.id, email: admin.email, name: admin.name || 'Super Admin', role: 'super_admin' },
+        JWT_SECRET,
+        { expiresIn: '1d' }
+      );
+      // Return token and user info
+      return NextResponse.json({
+        message: 'Login successful',
+        token,
+        redirectUrl: '/super-admin',
+        user: {
+          id: admin.id,
+          name: admin.name || 'Super Admin',
+          email: admin.email,
+          role: 'super_admin'
+        }
+      });
+    }
+
     // Check if user exists in organizations table
     const [organizations] = await db.query('SELECT * FROM organizations WHERE email = ?', [email]);
     
@@ -79,7 +111,8 @@ export async function POST(request) {
       if (isTeamMember) {
         redirectUrl = '/employee-dashboard';
       } else if (isAdmin) {
-        redirectUrl = '/super-admin-dashboard';
+        // Change: Admin employees should not navigate to super-admin anymore
+        redirectUrl = '/dashboard';
       } else {
         redirectUrl = '/dashboard';
       }
