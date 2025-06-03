@@ -74,10 +74,10 @@ export default function Home() {
                 </motion.span>
               </div>
               <div className="hidden md:ml-6 md:flex md:space-x-8">
-                <Link href="/" className="border-b-2 border-primary text-foreground inline-flex items-center px-1 pt-1 text-sm font-medium">
+                {/* <Link href="/" className="border-b-2 border-primary text-foreground inline-flex items-center px-1 pt-1 text-sm font-medium">
                   Home
-                </Link>
-                <Link href="/features" className="border-transparent text-muted-foreground hover:text-foreground hover:border-b-2 hover:border-primary/50 transition-all inline-flex items-center px-1 pt-1 text-sm font-medium">
+                </Link> */}
+                {/* <Link href="/features" className="border-transparent text-muted-foreground hover:text-foreground hover:border-b-2 hover:border-primary/50 transition-all inline-flex items-center px-1 pt-1 text-sm font-medium">
                   Features
                 </Link>
                 <Link href="/pricing" className="border-transparent text-muted-foreground hover:text-foreground hover:border-b-2 hover:border-primary/50 transition-all inline-flex items-center px-1 pt-1 text-sm font-medium">
@@ -85,7 +85,7 @@ export default function Home() {
                 </Link>
                 <Link href="/about" className="border-transparent text-muted-foreground hover:text-foreground hover:border-b-2 hover:border-primary/50 transition-all inline-flex items-center px-1 pt-1 text-sm font-medium">
                   About
-                </Link>
+                </Link> */}
               </div>
             </div>
             <div className="hidden md:flex items-center space-x-4">

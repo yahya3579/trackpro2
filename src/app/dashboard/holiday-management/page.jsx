@@ -131,7 +131,11 @@ export default function HolidayManagementPage() {
 
   const handleDeleteHoliday = async (id) => {
     try {
-      const res = await fetch(`/api/holiday-management?id=${id}`, { method: "DELETE" });
+      const token = localStorage.getItem("token");
+      const res = await fetch(`/api/holiday-management?id=${id}`, {
+        method: "DELETE",
+        headers: { "x-auth-token": token },
+      });
       if (res.ok) fetchHolidays();
     } catch (err) {
       console.error(err);

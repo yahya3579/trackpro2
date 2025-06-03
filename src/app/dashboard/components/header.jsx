@@ -60,7 +60,7 @@ export function Header({ onMenuClick }) {
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
         >
-          <Button 
+          <Button
             variant="ghost" 
             size="icon" 
             className="hover:bg-accent rounded-full h-9 w-9 transition-all duration-300"

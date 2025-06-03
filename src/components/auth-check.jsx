@@ -13,7 +13,7 @@ export default function AuthCheck({ children }) {
     const token = localStorage.getItem('token');
     
     if (!token) {
-      // Redirect to login page if not authenticated
+      // Redirect to home page if not authenticated
       router.push('/login');
     } else {
       setIsAuthenticated(true);
