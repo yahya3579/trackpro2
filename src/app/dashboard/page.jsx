@@ -22,7 +22,8 @@ import {
   Info,
   Award,
   Sparkles,
-  History
+  History,
+  LayoutDashboard
 } from "lucide-react";
 import { CardSpotlight } from "@/components/ui/card-spotlight";
 import { PulseButton } from "@/components/ui/aceternity-button";
@@ -35,12 +36,20 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
+import { Pie } from 'react-chartjs-2';
+import {
+  Chart as ChartJS,
+  ArcElement,
+  Tooltip as ChartJsTooltip,
+  Legend as ChartJsLegend,
+} from 'chart.js';
 
 // export const metadata = {
 //   title: "Dashboard | TrackPro",
 //   description: "Employee Monitoring Dashboard",
 // };
+
+ChartJS.register(ArcElement, ChartJsTooltip, ChartJsLegend);
 
 export default function DashboardPage() {
   const [employees, setEmployees] = useState([]);
@@ -269,7 +278,8 @@ export default function DashboardPage() {
     <div className="space-y-10 pb-10">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mt-8 mb-8">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-primary to-purple-600">
+          <h1 className="text-3xl font-bold tracking-tight text-black flex items-center gap-2">
+            <LayoutDashboard className="h-7 w-7 text-primary" />
             Dashboard
           </h1>
           <p className="text-muted-foreground mt-1">
@@ -471,7 +481,10 @@ export default function DashboardPage() {
               <CardHeader className="pb-6 pt-6">
                 <div className="flex items-center justify-between">
                   <div>
-                    <CardTitle className="text-xl font-bold text-primary">Productivity Overview</CardTitle>
+                    <CardTitle className="text-xl font-bold text-black flex items-center gap-2">
+                      <PieChartIcon className="h-6 w-6 text-primary" />
+                      Productivity Overview
+                    </CardTitle>
                     <CardDescription className="mt-1 text-base text-muted-foreground">Breakdown of team productivity metrics</CardDescription>
                   </div>
                   <Button variant="outline" size="sm" className="h-8 rounded-full border-muted-foreground/20 hover:bg-primary/10">
@@ -488,53 +501,49 @@ export default function DashboardPage() {
                   </div>
                 ) : (
                   <div className="flex flex-col justify-center items-center">
-                    {/* Pie Chart */}
-                    <div className="relative h-56 w-56 bg-gradient-to-br from-primary/5 to-white/80 rounded-full shadow-lg flex items-center justify-center">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                          <Pie
-                            data={[
-                              { name: 'Productive', value: productivityData?.productiveHours || 0, color: '#10b981' },
-                              { name: 'Non-Productive', value: productivityData?.totalTrackedHours - (productivityData?.productiveHours || 0) || 0, color: '#f87171' },
-                            ]}
-                            cx="50%"
-                            cy="50%"
-                            innerRadius={60}
-                            outerRadius={90}
-                            paddingAngle={3}
-                            dataKey="value"
-                            strokeWidth={2}
-                            stroke="#ffffff"
-                            onMouseLeave={() => setHoveredPieIndex(null)}
-                          >
-                            <Cell key="cell-productive" fill="#10b981" onMouseEnter={() => setHoveredPieIndex(0)} />
-                            <Cell key="cell-non-productive" fill="#f87171" onMouseEnter={() => setHoveredPieIndex(1)} />
-                          </Pie>
-                        </PieChart>
-                      </ResponsiveContainer>
-                      <div className="absolute inset-0 flex items-center justify-center flex-col pointer-events-none select-none">
-                        {hoveredPieIndex === 0 && (
-                          <>
-                            <span className="text-5xl font-extrabold text-primary drop-shadow-lg">
-                              {Math.round(productivityData?.averageProductivity || 0)}%
-                            </span>
-                            <span className="text-xs text-muted-foreground mt-1 tracking-wide">Productivity</span>
-                          </>
-                        )}
-                        {hoveredPieIndex === 1 && (
-                          <>
-                            <span className="text-5xl font-extrabold text-destructive drop-shadow-lg">
-                              {100 - Math.round(productivityData?.averageProductivity || 0)}%
-                            </span>
-                            <span className="text-xs text-muted-foreground mt-1 tracking-wide">Non-Productive</span>
-                          </>
-                        )}
-                        {hoveredPieIndex === null && (
-                          <>
-                            <span className="text-lg font-semibold text-muted-foreground">Hover chart</span>
-                            <span className="text-xs text-muted-foreground mt-1">for details</span>
-                          </>
-                        )}
+                    {/* Pie Chart (Chart.js) */}
+                    <div className="relative h-56 w-56 flex items-center justify-center">
+                      <Pie
+                        data={{
+                          labels: ['Productive', 'Non-Productive'],
+                          datasets: [
+                            {
+                              data: [productiveHours, nonProductiveHours],
+                              backgroundColor: ['#10b981', '#f87171'],
+                              borderColor: ['#fff', '#fff'],
+                              borderWidth: 2,
+                              hoverOffset: 8,
+                            },
+                          ],
+                        }}
+                        options={{
+                          cutout: '70%',
+                          plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                              callbacks: {
+                                label: function(context) {
+                                  const label = context.label || '';
+                                  const value = context.raw || 0;
+                                  const total = productiveHours + nonProductiveHours;
+                                  const percent = total > 0 ? Math.round((value / total) * 100) : 0;
+                                  return `${label}: ${value.toFixed(1)}h (${percent}%)`;
+                                },
+                              },
+                            },
+                          },
+                          maintainAspectRatio: false,
+                          responsive: true,
+                        }}
+                        width={220}
+                        height={220}
+                      />
+                      {/* Center Percentage Overlay */}
+                      <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none select-none">
+                        <span className="text-5xl font-extrabold text-primary drop-shadow-lg">
+                          {Math.round(productivityData?.averageProductivity || 0)}%
+                        </span>
+                        <span className="text-xs text-muted-foreground mt-1 tracking-wide">Productivity</span>
                       </div>
                     </div>
                     {/* Modern Legend */}

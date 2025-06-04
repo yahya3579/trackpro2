@@ -2,18 +2,6 @@
 
 import { useState, useEffect } from "react";
 import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Cell,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-} from "recharts";
-import {
   Card,
   CardContent,
   CardDescription,
@@ -58,6 +46,18 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { toast } from "sonner";
+import { Bar } from 'react-chartjs-2';
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title,
+  Tooltip as ChartJsTooltip,
+  Legend as ChartJsLegend,
+} from 'chart.js';
+
+ChartJS.register(CategoryScale, LinearScale, BarElement, Title, ChartJsTooltip, ChartJsLegend);
 
 // Add APP_COLORS array at the top (copy from activity-monitoring)
 const APP_COLORS = [
@@ -338,7 +338,10 @@ export default function AppUsagePage() {
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row justify-between gap-4 md:items-center">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Application Usage</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-black flex items-center gap-2">
+            <BarChart2 className="h-7 w-7 text-primary" />
+            Application Usage
+          </h1>
           <p className="text-muted-foreground">
             Track and analyze application usage across your team
           </p>
@@ -460,7 +463,10 @@ export default function AppUsagePage() {
       {/* Top Applications Chart */}
       <Card>
         <CardHeader>
-          <CardTitle>Top Applications</CardTitle>
+          <CardTitle className="flex items-center gap-2 text-black">
+            <BarChart2 className="h-5 w-5 text-blue-500" />
+            Top Applications
+          </CardTitle>
           <CardDescription>
             Most used applications by time
           </CardDescription>
@@ -485,62 +491,79 @@ export default function AppUsagePage() {
                   </Badge>
                 ))}
               </div>
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  data={appSummaryData}
-                  layout="vertical"
-                  margin={{ top: 10, right: 30, left: 80, bottom: 10 }}
-                  barCategoryGap={16}
-                >
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                  <XAxis
-                    type="number"
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fontSize: 12, fill: '#888' }}
-                    label={{ value: 'Time (hours)', position: 'insideBottom', offset: -5, fontSize: 12, fill: '#888' }}
-                  />
-                  <YAxis
-                    type="category"
-                    dataKey="name"
-                    width={90}
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fontSize: 13, fill: '#222' }}
-                  />
-                  <Tooltip
-                    content={({ active, payload, label }) => {
-                      if (!active || !payload || !payload.length) return null;
-                      const app = payload[0].payload;
-                      return (
-                        <div className="rounded-lg border bg-white p-3 shadow-md min-w-[180px]">
-                          <div className="font-semibold mb-1">{app.name}</div>
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="block w-3 h-3 rounded-full" style={{ background: CATEGORY_COLORS[app.category] || CATEGORY_COLORS.other }} />
-                            <span className="capitalize text-xs">{app.category}</span>
-                          </div>
-                          <div className="text-xs text-muted-foreground">{app.formattedTime} ({app.value.toFixed(1)} hrs)</div>
-                          <div className="text-xs">Usage Count: <span className="font-medium">{app.usage_count}</span></div>
-                          <div className="text-xs">Status: <Badge variant={app.productive ? 'default' : 'destructive'}>{app.productive ? 'Productive' : 'Non-productive'}</Badge></div>
-                        </div>
-                      );
-                    }}
-                  />
-                  <Bar
-                    dataKey="value"
-                    name="Usage Time"
-                    radius={[6, 6, 6, 6]}
-                    minPointSize={4}
-                  >
-                    {appSummaryData.map((entry, index) => (
-                      <Cell
-                        key={`cell-${index}`}
-                        fill={APP_COLORS[index % APP_COLORS.length]}
-                      />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
+              <div className="h-[350px] w-full">
+                <Bar
+                  data={{
+                    labels: appSummaryData.map(app => app.name),
+                    datasets: [
+                      {
+                        label: 'Usage Time (hours)',
+                        data: appSummaryData.map(app => app.value),
+                        backgroundColor: appSummaryData.map((app, index) => APP_COLORS[index % APP_COLORS.length]),
+                        borderRadius: 8,
+                        maxBarThickness: 32,
+                      },
+                    ],
+                  }}
+                  options={{
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                      legend: {
+                        display: false,
+                      },
+                      title: {
+                        display: false,
+                      },
+                      tooltip: {
+                        backgroundColor: '#fff',
+                        titleColor: '#222',
+                        bodyColor: '#222',
+                        borderColor: '#e5e7eb',
+                        borderWidth: 1,
+                        callbacks: {
+                          label: function(context) {
+                            const app = appSummaryData[context.dataIndex];
+                            return [
+                              `Time: ${app.formattedTime} (${app.value.toFixed(1)} hrs)`,
+                              `Category: ${app.category}`,
+                              `Usage Count: ${app.usage_count}`,
+                              `Status: ${app.productive ? 'Productive' : 'Non-productive'}`
+                            ];
+                          }
+                        }
+                      },
+                    },
+                    scales: {
+                      x: {
+                        grid: {
+                          color: '#e5e7eb',
+                        },
+                        title: {
+                          display: true,
+                          text: 'Time (hours)',
+                          color: '#888',
+                          font: { size: 13, weight: 'bold' },
+                        },
+                        ticks: {
+                          color: '#888',
+                          font: { size: 12 },
+                        },
+                      },
+                      y: {
+                        grid: {
+                          color: '#f3f4f6',
+                        },
+                        ticks: {
+                          color: '#222',
+                          font: { size: 13, weight: 'bold' },
+                        },
+                      },
+                    },
+                  }}
+                />
+              </div>
             </>
           )}
         </CardContent>
@@ -549,11 +572,9 @@ export default function AppUsagePage() {
       {/* Application Usage Table */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
-          <div>
-            <CardTitle>Application Details</CardTitle>
-            <CardDescription>
-              Detailed breakdown of all application usage
-            </CardDescription>
+          <div className="flex items-center gap-2">
+            <PieChartIcon className="h-5 w-5 text-indigo-500" />
+            <CardTitle className="text-black">Application Details</CardTitle>
           </div>
           <div className="space-x-2">
             <Button variant="outline" size="sm" onClick={() => setViewMode("apps")}>

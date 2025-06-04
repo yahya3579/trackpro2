@@ -64,6 +64,10 @@ import {
   CheckCircle,
   XCircle,
   Loader2,
+  LayoutDashboard,
+  Timer,
+  User,
+  Globe
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -430,8 +434,11 @@ export default function ActivityMonitoringPage() {
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row justify-between gap-4 md:items-center">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Activity Monitoring</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-3xl font-bold tracking-tight text-black flex items-center gap-2">
+            <Activity className="h-7 w-7 text-primary" />
+            Activity Monitoring
+          </h1>
+          <p className="text-muted-foreground mt-1">
             Track employee application usage and productivity.
           </p>
         </div>
@@ -483,15 +490,15 @@ export default function ActivityMonitoringPage() {
       <Tabs value={viewMode} onValueChange={setViewMode}>
         <TabsList>
           <TabsTrigger value="overview" className="flex items-center gap-2">
-            <BarChart2 className="h-4 w-4" />
+            <BarChart2 className="h-5 w-5 text-primary" />
             Overview
           </TabsTrigger>
           <TabsTrigger value="apps" className="flex items-center gap-2">
-            <Monitor className="h-4 w-4" />
+            <Monitor className="h-5 w-5 text-blue-500" />
             Applications
           </TabsTrigger>
           <TabsTrigger value="details" className="flex items-center gap-2">
-            <List className="h-4 w-4" />
+            <List className="h-5 w-5 text-purple-500" />
             Activity Log
           </TabsTrigger>
         </TabsList>
@@ -501,7 +508,10 @@ export default function ActivityMonitoringPage() {
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-                <CardTitle className="text-sm font-medium">Total Time Tracked</CardTitle>
+                <CardTitle className="text-sm font-medium flex items-center gap-2">
+                  <Clock className="h-4 w-4 text-primary" />
+                  Total Application Usage Time
+                </CardTitle>
                 <Clock className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
@@ -514,7 +524,10 @@ export default function ActivityMonitoringPage() {
             
             <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-                <CardTitle className="text-sm font-medium">Productivity Rate</CardTitle>
+                <CardTitle className="text-sm font-medium flex items-center gap-2">
+                  <TrendingUp className="h-4 w-4 text-green-500" />
+                  Productivity Rate
+                </CardTitle>
                 <TrendingUp className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
@@ -527,7 +540,10 @@ export default function ActivityMonitoringPage() {
             
             <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-                <CardTitle className="text-sm font-medium">Applications</CardTitle>
+                <CardTitle className="text-sm font-medium flex items-center gap-2">
+                  <Briefcase className="h-4 w-4 text-blue-500" />
+                  Applications
+                </CardTitle>
                 <Briefcase className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
@@ -540,7 +556,10 @@ export default function ActivityMonitoringPage() {
             
             <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-                <CardTitle className="text-sm font-medium">Top Category</CardTitle>
+                <CardTitle className="text-sm font-medium flex items-center gap-2">
+                  <PieChartIcon className="h-4 w-4 text-purple-500" />
+                  Top Category
+                </CardTitle>
                 {categorySummaryData.length > 0 && getCategoryIcon(categorySummaryData[0].name)}
               </CardHeader>
               <CardContent>
@@ -559,7 +578,10 @@ export default function ActivityMonitoringPage() {
             {/* Top Applications Chart */}
             <Card className="col-span-1">
               <CardHeader>
-                <CardTitle>Top Applications</CardTitle>
+                <CardTitle className="flex items-center gap-2 text-black">
+                  <BarChart2 className="h-5 w-5 text-primary" />
+                  Top Applications
+                </CardTitle>
                 <CardDescription>
                   Most used applications by time
                 </CardDescription>
@@ -665,7 +687,10 @@ export default function ActivityMonitoringPage() {
             {/* Productivity Chart */}
             <Card className="col-span-1">
               <CardHeader>
-                <CardTitle>Productivity Distribution</CardTitle>
+                <CardTitle className="flex items-center gap-2 text-black">
+                  <PieChartIcon className="h-5 w-5 text-purple-500" />
+                  Productivity Distribution
+                </CardTitle>
                 <CardDescription>
                   Time spent on productive vs non-productive apps
                 </CardDescription>
@@ -705,7 +730,10 @@ export default function ActivityMonitoringPage() {
           {/* Category Breakdown */}
           <Card>
             <CardHeader>
-              <CardTitle>Category Breakdown</CardTitle>
+              <CardTitle className="flex items-center gap-2 text-black">
+                <Layers className="h-5 w-5 text-indigo-500" />
+                Category Breakdown
+              </CardTitle>
               <CardDescription>
                 Time spent in different application categories
               </CardDescription>
@@ -760,7 +788,10 @@ export default function ActivityMonitoringPage() {
         <TabsContent value="apps">
           <Card>
             <CardHeader>
-              <CardTitle>Application Usage</CardTitle>
+              <CardTitle className="flex items-center gap-2 text-black">
+                <Monitor className="h-5 w-5 text-blue-500" />
+                Application Usage
+              </CardTitle>
               <CardDescription>
                 Detailed breakdown of application usage
               </CardDescription>
@@ -866,7 +897,10 @@ export default function ActivityMonitoringPage() {
         <TabsContent value="details">
           <Card>
             <CardHeader>
-              <CardTitle>Activity Log</CardTitle>
+              <CardTitle className="flex items-center gap-2 text-black">
+                <List className="h-5 w-5 text-purple-500" />
+                Activity Log
+              </CardTitle>
               <CardDescription>
                 Chronological log of application activities
               </CardDescription>
@@ -886,7 +920,10 @@ export default function ActivityMonitoringPage() {
                   <div className="grid gap-6 md:grid-cols-2 mb-8 w-full overflow-x-auto">
                     {/* Left: App List */}
                     <div className="flex flex-col space-y-4 min-w-[320px]">
-                      <h3 className="text-lg font-semibold">Application Usage</h3>
+                      <h3 className="text-lg font-semibold flex items-center gap-2">
+                        <Monitor className="h-5 w-5 text-blue-500" />
+                        Application Usage
+                      </h3>
                       <div className="space-y-2 max-h-[350px] overflow-y-auto pr-4">
                         {activityData.appUsage
                           .reduce((unique, app) => {
@@ -965,7 +1002,10 @@ export default function ActivityMonitoringPage() {
 
                   {/* Browser Tab/URL Usage Pie Chart (No Labels) */}
                   <div className="mt-10">
-                    <h3 className="text-lg font-semibold mb-4 text-center">Browser Tab/URL Usage</h3>
+                    <h3 className="text-lg font-semibold mb-4 text-center flex items-center justify-center gap-2">
+                      <Chrome className="h-5 w-5 text-blue-500" />
+                      Browser Tab/URL Usage
+                    </h3>
                     <ResponsiveContainer width="100%" height={320}>
                       {(() => {
                         // Aggregate all url_details from browser apps only
@@ -1039,12 +1079,12 @@ export default function ActivityMonitoringPage() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Date</TableHead>
-                        <TableHead>Time</TableHead>
-                        <TableHead>Application</TableHead>
-                        <TableHead>Window Title / URL</TableHead>
-                        <TableHead>Duration</TableHead>
-                        <TableHead>Employee</TableHead>
+                        <TableHead className="flex items-center gap-1"><CalendarIcon className="h-4 w-4 text-primary" />Date</TableHead>
+                        <TableHead className="flex items-center gap-1"><Clock className="h-4 w-4 text-blue-500" />Time</TableHead>
+                        <TableHead className="flex items-center gap-1"><Monitor className="h-4 w-4 text-green-500" />Application</TableHead>
+                        <TableHead className="flex items-center gap-1"><Globe className="h-4 w-4 text-indigo-500" />Window Title / URL</TableHead>
+                        <TableHead className="flex items-center gap-1"><Timer className="h-4 w-4 text-purple-500" />Duration</TableHead>
+                        <TableHead className="flex items-center gap-1"><User className="h-4 w-4 text-amber-500" />Employee</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>

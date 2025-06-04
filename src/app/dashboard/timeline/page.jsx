@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageTemplate } from "../components/page-template";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { AlertCircle, CheckCircle, XCircle, Chrome, Code, FileText, MessageSquare, Briefcase, Film, Layers } from "lucide-react";
+import { AlertCircle, CheckCircle, XCircle, Chrome, Code, FileText, MessageSquare, Briefcase, Film, Layers, History } from "lucide-react";
 
 // Utility functions and constants (copied from activity-monitoring)
 const formatTime = (seconds) => {
@@ -199,7 +199,10 @@ export default function TimelinePage() {
       <div className="max-w-2xl mx-auto w-full mt-8">
         <Card>
           <CardHeader>
-            <CardTitle>Category Breakdown</CardTitle>
+            <CardTitle className="flex items-center gap-2 text-black">
+              <Layers className="h-5 w-5 text-indigo-500" />
+              Category Breakdown
+            </CardTitle>
             <CardDescription>
               Time spent in different application categories
             </CardDescription>

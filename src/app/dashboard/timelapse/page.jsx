@@ -307,7 +307,10 @@ export default function TimelapsePage() {
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row justify-between gap-4 md:items-center">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Timelapse Viewer</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-black flex items-center gap-2">
+            <Camera className="h-7 w-7 text-primary" />
+            Timelapse Viewer
+          </h1>
           <p className="text-muted-foreground">
             View employee screenshots in a timelapse sequence.
           </p>
@@ -384,7 +387,10 @@ export default function TimelapsePage() {
           {/* Timelapse Viewer */}
           <Card>
             <CardHeader>
-              <CardTitle>Timelapse Viewer</CardTitle>
+              <CardTitle className="flex items-center gap-2 text-black">
+                <PlayCircle className="h-5 w-5 text-blue-500" />
+                Timelapse Viewer
+              </CardTitle>
               <CardDescription>
                 Viewing {filteredScreenshots.length} screenshots
               </CardDescription>
@@ -519,7 +525,10 @@ export default function TimelapsePage() {
           {/* Screenshot Thumbnails */}
           <Card>
             <CardHeader>
-              <CardTitle>Screenshots Timeline</CardTitle>
+              <CardTitle className="flex items-center gap-2 text-black">
+                <Camera className="h-5 w-5 text-primary" />
+                Screenshots Timeline
+              </CardTitle>
               <CardDescription>
                 Click on a thumbnail to view it in the timelapse
               </CardDescription>

@@ -370,7 +370,10 @@ export default function LeaveManagementPage() {
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row justify-between gap-4 md:items-center">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Leave Management</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-black flex items-center gap-2">
+            <CalendarDays className="h-7 w-7 text-primary" />
+            Leave Management
+          </h1>
           <p className="text-muted-foreground">
             Track, and manage employee leaves and absences.
           </p>
@@ -400,7 +403,10 @@ export default function LeaveManagementPage() {
         {selectedEmployee !== "all" && leaveBalances.length > 0 && (
           <Card>
             <CardHeader>
-              <CardTitle>Leave Balances</CardTitle>
+              <CardTitle className="flex items-center gap-2 text-black">
+                <FileText className="h-5 w-5 text-blue-500" />
+                Leave Balances
+              </CardTitle>
               <CardDescription>
                 Current leave balances for {employees.find(e => e.id.toString() === selectedEmployee)?.employee_name}
               </CardDescription>
@@ -436,7 +442,10 @@ export default function LeaveManagementPage() {
         {/* Leave Requests */}
         <Card>
           <CardHeader>
-            <CardTitle>Leave Requests</CardTitle>
+            <CardTitle className="flex items-center gap-2 text-black">
+              <UserCheck className="h-5 w-5 text-green-600" />
+              Leave Requests
+            </CardTitle>
             <CardDescription>
               Pending and recent leave requests that need your attention
             </CardDescription>
@@ -525,7 +534,10 @@ export default function LeaveManagementPage() {
         {/* Presence Tracking */}
         <Card>
           <CardHeader>
-            <CardTitle>Employee Presence</CardTitle>
+            <CardTitle className="flex items-center gap-2 text-black">
+              <Activity className="h-5 w-5 text-purple-500" />
+              Employee Presence
+            </CardTitle>
             <CardDescription>
               Monitor employee activity and auto-detected leaves
             </CardDescription>
@@ -607,7 +619,9 @@ export default function LeaveManagementPage() {
       <Dialog open={leaveActionDialogOpen} onOpenChange={setLeaveActionDialogOpen}>
         <DialogContent className="sm:max-w-[450px]">
           <DialogHeader>
-            <DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              {actionType === "approved" && <CheckCircle className="h-5 w-5 text-green-500" />} 
+              {actionType === "rejected" && <XCircle className="h-5 w-5 text-red-500" />} 
               {actionType === "approved" ? "Approve Leave Request" : 
                actionType === "rejected" ? "Reject Leave Request" : "Confirm Action"}
             </DialogTitle>

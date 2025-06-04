@@ -60,6 +60,8 @@ import {
   ArrowUp,
   ArrowDown,
   Loader2,
+  BadgeCheck,
+  LayoutDashboard
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -318,7 +320,10 @@ export default function TimeTrackingPage() {
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row justify-between gap-4 md:items-center">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Time Tracking</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-black flex items-center gap-2">
+            <Clock className="h-7 w-7 text-primary" />
+            Time Tracking
+          </h1>
           <p className="text-muted-foreground">
             Monitor employee time and productivity.
           </p>
@@ -355,11 +360,11 @@ export default function TimeTrackingPage() {
       <Tabs value={viewMode} onValueChange={setViewMode}>
         <TabsList>
           <TabsTrigger value="overview" className="flex items-center gap-2">
-            <BarChart2 className="h-4 w-4" />
+            <BarChart2 className="h-5 w-5 text-primary" />
             Overview
           </TabsTrigger>
           <TabsTrigger value="details" className="flex items-center gap-2">
-            <Clock className="h-4 w-4" />
+            <Clock className="h-5 w-5 text-blue-500" />
             Time Details
           </TabsTrigger>
         </TabsList>
@@ -369,7 +374,10 @@ export default function TimeTrackingPage() {
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-                <CardTitle className="text-sm font-medium">Total Hours</CardTitle>
+                <CardTitle className="text-sm font-medium flex items-center gap-2">
+                  <BarChart2 className="h-4 w-4 text-primary" />
+                  Total Hours
+                </CardTitle>
                 <Clock className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
@@ -382,7 +390,10 @@ export default function TimeTrackingPage() {
             
             <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-                <CardTitle className="text-sm font-medium">Active Time</CardTitle>
+                <CardTitle className="text-sm font-medium flex items-center gap-2">
+                  <Activity className="h-4 w-4 text-green-500" />
+                  Active Time
+                </CardTitle>
                 <Activity className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
@@ -395,7 +406,10 @@ export default function TimeTrackingPage() {
             
             <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-                <CardTitle className="text-sm font-medium">Present Days</CardTitle>
+                <CardTitle className="text-sm font-medium flex items-center gap-2">
+                  <User className="h-4 w-4 text-blue-500" />
+                  Present Days
+                </CardTitle>
                 <User className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
@@ -408,7 +422,10 @@ export default function TimeTrackingPage() {
             
             <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-                <CardTitle className="text-sm font-medium">Break Time</CardTitle>
+                <CardTitle className="text-sm font-medium flex items-center gap-2">
+                  <Timer className="h-4 w-4 text-orange-500" />
+                  Break Time
+                </CardTitle>
                 <Timer className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
@@ -424,7 +441,10 @@ export default function TimeTrackingPage() {
           <div className="grid gap-6 md:grid-cols-2">
             <Card className="col-span-1">
               <CardHeader>
-                <CardTitle>Working Hours</CardTitle>
+                <CardTitle className="flex items-center gap-2 text-black">
+                  <BarChart2 className="h-5 w-5 text-primary" />
+                  Working Hours
+                </CardTitle>
                 <CardDescription>
                   Total vs. active hours {selectedEmployee === "all" ? "per employee" : "per day"}
                 </CardDescription>
@@ -525,7 +545,10 @@ export default function TimeTrackingPage() {
 
             <Card className="col-span-1">
               <CardHeader>
-                <CardTitle>Time Distribution</CardTitle>
+                <CardTitle className="flex items-center gap-2 text-black">
+                  <PieChartIcon className="h-5 w-5 text-purple-500" />
+                  Time Distribution
+                </CardTitle>
                 <CardDescription>
                   Breakdown of active vs. break time
                 </CardDescription>
@@ -566,7 +589,10 @@ export default function TimeTrackingPage() {
         <TabsContent value="details">
           <Card>
             <CardHeader>
-              <CardTitle>Time Log Details</CardTitle>
+              <CardTitle className="flex items-center gap-2 text-black">
+                <Clock className="h-5 w-5 text-blue-500" />
+                Time Log Details
+              </CardTitle>
               <CardDescription>
                 Detailed time tracking records
               </CardDescription>
