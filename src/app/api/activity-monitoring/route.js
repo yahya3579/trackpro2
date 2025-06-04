@@ -374,12 +374,17 @@ export async function GET(request) {
     
     const [productivityStats] = await db.query(productivityQuery, summaryParams);
     
+    // Calculate total_hours (sum of all duration_seconds, converted to hours)
+    const totalSeconds = appSummary.reduce((sum, app) => sum + Number(app.total_duration || 0), 0);
+    const total_hours = (totalSeconds / 3600).toFixed(2); // 2 decimal places
+    
     // Return data
     return NextResponse.json({ 
       success: true, 
       appUsage,
       appSummary,
-      productivityStats
+      productivityStats,
+      total_hours
     });
     
   } catch (error) {
@@ -437,7 +442,7 @@ export async function POST(request) {
             category = 'browser';
           } else if (appLower.includes('word') || appLower.includes('excel') || appLower.includes('powerpoint') || appLower.includes('office')) {
             category = 'office';
-          } else if (appLower.includes('vscode') || appLower.includes('intellij') || appLower.includes('eclipse') || appLower.includes('sublime')) {
+          } else if (appLower.includes('vscode') || appLower.includes('intellij') || appLower.includes('eclipse') || appLower.includes('sublime') || appLower.includes('cursor')) {
             category = 'development';
           } else if (appLower.includes('photoshop') || appLower.includes('illustrator') || appLower.includes('figma') || appLower.includes('sketch')) {
             category = 'design';

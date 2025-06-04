@@ -178,7 +178,8 @@ export default function ActivityMonitoringPage() {
   const [activityData, setActivityData] = useState({
     appUsage: [],
     appSummary: [],
-    productivityStats: []
+    productivityStats: [],
+    total_hours: "0.00"
   });
   const [selectedEmployee, setSelectedEmployee] = useState("all");
   const [timeRange, setTimeRange] = useState("week");
@@ -301,6 +302,7 @@ export default function ActivityMonitoringPage() {
         appUsage: sanitizedAppUsage,
         appSummary: sanitizedAppSummary,
         productivityStats: data.productivityStats || [],
+        total_hours: data.total_hours || "0.00"
       });
       setIsLoading(false);
     } catch (error) {
@@ -503,7 +505,7 @@ export default function ActivityMonitoringPage() {
                 <Clock className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{calculateTotalTime()}</div>
+                <div className="text-2xl font-bold">{formatTime(Math.round(Number(activityData.total_hours) * 3600))}</div>
                 <p className="text-xs text-muted-foreground">
                   Total application usage time
                 </p>
