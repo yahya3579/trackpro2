@@ -12,7 +12,23 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { format } from "date-fns";
-import { Calendar as CalendarIcon, Clock, Activity } from "lucide-react";
+import { Calendar as CalendarIcon, Clock, Activity, BarChart2, TrendingUp, CheckCircle, XCircle } from "lucide-react";
+import { Pie, Bar } from 'react-chartjs-2';
+import {
+  Chart as ChartJS,
+  ArcElement,
+  Tooltip,
+  Legend,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title as ChartTitle,
+  Tooltip as ChartTooltip,
+  Legend as ChartLegend
+} from 'chart.js';
+
+// Register Chart.js components
+ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, ChartTitle, ChartTooltip, ChartLegend);
 
 export default function MyWork() {
   // State for date range selection
@@ -26,7 +42,7 @@ export default function MyWork() {
   const [appUsageData, setAppUsageData] = useState([]);
   const [productivityData, setProductivityData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [appUsageTab, setAppUsageTab] = useState("all"); // NEW: track selected tab
+  const [appUsageTab, setAppUsageTab] = useState("all");
 
   // Get token from localStorage
   const getToken = () => {
@@ -144,7 +160,7 @@ export default function MyWork() {
     }
   }, [date]);
 
-  // Group app usage by application name
+  // Group app usage by application name, and collect first_time and last_end_time
   const appUsageSummary = appUsageData.reduce((acc, item) => {
     const key = item.application_name;
     if (!acc[key]) {
@@ -153,7 +169,16 @@ export default function MyWork() {
         duration: 0,
         productive: Number(item.productive),
         category: item.category || "other",
+        first_time: item.first_time,
+        last_end_time: item.last_end_time,
       };
+    } else {
+      if (item.first_time && (!acc[key].first_time || item.first_time < acc[key].first_time)) {
+        acc[key].first_time = item.first_time;
+      }
+      if (item.last_end_time && (!acc[key].last_end_time || item.last_end_time > acc[key].last_end_time)) {
+        acc[key].last_end_time = item.last_end_time;
+      }
     }
     acc[key].duration += item.duration_seconds || 0;
     return acc;
@@ -171,20 +196,34 @@ export default function MyWork() {
   } else if (appUsageTab === "nonProductive") {
     filteredAppUsage = sortedAppUsage.filter((app) => app.productive === 0);
   }
-  // Always sort by duration descending
   filteredAppUsage = filteredAppUsage.sort((a, b) => b.duration - a.duration);
+
+  // Prepare data for stacked bar chart: one dataset for productive, one for non-productive
+  const appNames = Array.from(new Set(appUsageData.map(item => item.application_name)));
+  const productiveData = appNames.map(appName => {
+    return appUsageData
+      .filter(item => item.application_name === appName && item.productive === 1)
+      .reduce((sum, item) => sum + (item.duration_seconds || 0), 0) / 60;
+  });
+  const nonProductiveData = appNames.map(appName => {
+    return appUsageData
+      .filter(item => item.application_name === appName && item.productive === 0)
+      .reduce((sum, item) => sum + (item.duration_seconds || 0), 0) / 60;
+  });
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">My Work</h1>
+          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
+            <Activity className="h-8 w-8 text-primary" />
+            My Work
+          </h1>
           <p className="text-gray-500">
             Track your work hours and productivity
           </p>
         </div>
 
-        {/* Date Range Picker */}
         <div className="flex items-center gap-2">
           <Popover>
             <PopoverTrigger asChild>
@@ -228,11 +267,10 @@ export default function MyWork() {
         </div>
       ) : (
         <div className="grid gap-6">
-          {/* Productivity Summary */}
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center">
-                <Activity className="mr-2 h-5 w-5" />
+              <CardTitle className="flex items-center gap-2">
+                <TrendingUp className="h-5 w-5 text-green-500" />
                 Productivity
               </CardTitle>
             </CardHeader>
@@ -240,37 +278,46 @@ export default function MyWork() {
               {productivityData ? (
                 <div className="space-y-6">
                   <div className="flex flex-col gap-2">
-                    <div className="flex justify-between">
-                      <span className="text-sm text-gray-500">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-500 flex items-center gap-1">
+                        <TrendingUp className="h-4 w-4 text-green-500" />
                         Productivity Rate
                       </span>
-                      <span className="text-sm font-medium">
+                      <span className="text-sm font-medium flex items-center gap-1">
+                        <TrendingUp className="h-4 w-4 text-green-500" />
                         {productivityData.productivity_rate || 0}%
                       </span>
                     </div>
                     <Progress value={productivityData.productivity_rate || 0} />
                   </div>
-
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div className="flex flex-col gap-1">
-                      <span className="text-sm text-gray-500">
+                      <span className="text-sm text-gray-500 flex items-center gap-1">
+                        <CheckCircle className="h-4 w-4 text-green-500" />
                         Productive Time
                       </span>
-                      <span className="text-lg font-medium">
+                      <span className="text-lg font-medium flex items-center gap-1">
+                        <Clock className="h-5 w-5 text-primary" />
                         {formatTime(productivityData.productive_seconds)}
                       </span>
                     </div>
                     <div className="flex flex-col gap-1">
-                      <span className="text-sm text-gray-500">
+                      <span className="text-sm text-gray-500 flex items-center gap-1">
+                        <XCircle className="h-4 w-4 text-red-500" />
                         Non-Productive Time
                       </span>
-                      <span className="text-lg font-medium">
+                      <span className="text-lg font-medium flex items-center gap-1">
+                        <Clock className="h-5 w-5 text-destructive" />
                         {formatTime(productivityData.non_productive_seconds)}
                       </span>
                     </div>
                     <div className="flex flex-col gap-1">
-                      <span className="text-sm text-gray-500">Total Time</span>
-                      <span className="text-lg font-medium">
+                      <span className="text-sm text-gray-500 flex items-center gap-1">
+                        <Clock className="h-4 w-4 text-blue-500" />
+                        Total Time
+                      </span>
+                      <span className="text-lg font-medium flex items-center gap-1">
+                        <Clock className="h-5 w-5 text-blue-500" />
                         {formatTime(productivityData.total_seconds)}
                       </span>
                     </div>
@@ -284,48 +331,100 @@ export default function MyWork() {
             </CardContent>
           </Card>
 
-          {/* App Usage */}
           <Card>
             <CardHeader>
-              <CardTitle>App Usage</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <BarChart2 className="h-5 w-5 text-blue-500" />
+                App Usage
+              </CardTitle>
             </CardHeader>
             <CardContent>
-              {sortedAppUsage && sortedAppUsage.length > 0 ? (
-                <div className="space-y-6">
-                  <Tabs value={appUsageTab} onValueChange={setAppUsageTab} defaultValue="all">
-                    <TabsList>
-                      <TabsTrigger value="all">All</TabsTrigger>
-                      <TabsTrigger value="productive">Productive</TabsTrigger>
-                      <TabsTrigger value="nonProductive">Non-Productive</TabsTrigger>
-                    </TabsList>
-                  </Tabs>
-                  <div className="space-y-4 mt-4">
-                    {filteredAppUsage.map((app, index) => (
-                      <div
-                        key={index}
-                        className="flex justify-between items-center border-b pb-2"
-                      >
-                        <div className="flex items-center gap-2">
-                          <div
-                            className={`w-3 h-3 rounded-full ${
-                              app.productive === 1
-                                ? "bg-green-500"
-                                : "bg-red-500"
-                            }`}
-                          />
-                          <span className="font-medium">{app.name}</span>
-                          <span className="text-xs text-gray-500">
-                            {app.category}
-                          </span>
-                        </div>
-                        <span>{formatTime(app.duration)}</span>
-                      </div>
-                    ))}
-                  </div>
+              {appNames.length > 0 ? (
+                <div className="w-full max-w-2xl mx-auto" style={{ height: 340 }}>
+                  <Bar
+                    data={{
+                      labels: appNames,
+                      datasets: [
+                        {
+                          label: 'Productive (minutes)',
+                          data: productiveData,
+                          backgroundColor: '#10B981',
+                          stack: 'Stack 0',
+                        },
+                        {
+                          label: 'Non-Productive (minutes)',
+                          data: nonProductiveData,
+                          backgroundColor: '#EF4444',
+                          stack: 'Stack 0',
+                        },
+                      ],
+                    }}
+                    options={{
+                      responsive: true,
+                      maintainAspectRatio: false,
+                      plugins: {
+                        legend: {
+                          display: true,
+                          position: 'bottom',
+                          labels: {
+                            font: { size: 14 },
+                          },
+                        },
+                        title: {
+                          display: true,
+                          text: 'App Usage (Minutes)',
+                          font: { size: 18 },
+                        },
+                        tooltip: {
+                          callbacks: {
+                            label: function(context) {
+                              const value = context.parsed.y || 0;
+                              const seconds = Math.round(value * 60);
+                              return `${context.dataset.label}: ${formatTime(seconds)}`;
+                            }
+                          }
+                        },
+                      },
+                      scales: {
+                        x: {
+                          stacked: true,
+                          grid: {
+                            color: '#e5e7eb',
+                          },
+                          title: {
+                            display: true,
+                            text: 'Application',
+                            color: '#888',
+                            font: { size: 13, weight: 'bold' },
+                          },
+                          ticks: {
+                            color: '#888',
+                            font: { size: 12 },
+                          },
+                        },
+                        y: {
+                          stacked: true,
+                          grid: {
+                            color: '#f3f4f6',
+                          },
+                          title: {
+                            display: true,
+                            text: 'Time (minutes)',
+                            color: '#888',
+                            font: { size: 13, weight: 'bold' },
+                          },
+                          ticks: {
+                            color: '#222',
+                            font: { size: 13, weight: 'bold' },
+                          },
+                        },
+                      },
+                    }}
+                  />
                 </div>
               ) : (
                 <div className="text-center text-gray-500">
-                  No app usage data available for the selected date range.
+                  No valid app usage data available for the selected date range.
                 </div>
               )}
             </CardContent>
@@ -334,4 +433,4 @@ export default function MyWork() {
       )}
     </div>
   );
-} 
+}

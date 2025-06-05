@@ -7,7 +7,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Calendar as CalendarIcon, Search, Filter, Loader2 } from "lucide-react";
+import { Calendar as CalendarIcon, Search, Filter, Loader2, PartyPopper, BadgeCheck } from "lucide-react";
 import { toast } from "sonner";
 
 export default function ViewHolidayPage() {
@@ -15,11 +15,12 @@ export default function ViewHolidayPage() {
   const [holidays, setHolidays] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear().toString());
+  const [selectedYear, setSelectedYear] = useState('all');
+  const [filterYear, setFilterYear] = useState('all');
   
   useEffect(() => {
-    fetchHolidays(selectedYear);
-  }, [selectedYear]);
+    fetchHolidays(filterYear);
+  }, [filterYear]);
 
   const fetchHolidays = async (year) => {
     setLoading(true);
@@ -28,17 +29,18 @@ export default function ViewHolidayPage() {
       if (!token) {
         throw new Error("Authentication token not found");
       }
-
-      const response = await fetch(`/api/holiday-management?year=${year}`, {
+      let url = "/api/holiday-management";
+      if (year && year !== 'all') {
+        url += `?year=${year}`;
+      }
+      const response = await fetch(url, {
         headers: {
           "x-auth-token": token,
         },
       });
-
       if (!response.ok) {
         throw new Error("Failed to fetch holidays");
       }
-
       const data = await response.json();
       setHolidays(data.holidays || []);
       setError(null);
@@ -61,23 +63,29 @@ export default function ViewHolidayPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">View Holidays</h1>
-        <div className="flex gap-2">
+        <h1 className="text-3xl font-bold flex items-center gap-2">
+          <PartyPopper className="h-8 w-8 text-primary" />
+          View Holidays
+        </h1>
+        <div className="flex gap-2 items-center">
           <Select 
             value={selectedYear} 
             onValueChange={setSelectedYear}
           >
-            <SelectTrigger className="w-[120px]">
-              <SelectValue placeholder="Year" />
+            <SelectTrigger className="w-[160px]">
+              <SelectValue placeholder="All Holidays">
+                {selectedYear === 'all' ? 'All Holidays' : selectedYear}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
+              <SelectItem value="all">All Holidays</SelectItem>
               <SelectItem value="2022">2022</SelectItem>
               <SelectItem value="2023">2023</SelectItem>
               <SelectItem value="2024">2024</SelectItem>
             </SelectContent>
           </Select>
-          <Button variant="outline" size="icon">
-            <Filter className="h-4 w-4" />
+          <Button variant="outline" size="icon" onClick={() => setFilterYear(selectedYear)}>
+            <Filter className="h-5 w-5 text-blue-500" />
           </Button>
         </div>
       </div>
@@ -86,7 +94,10 @@ export default function ViewHolidayPage() {
         <div className="md:col-span-2 space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Holiday Calendar</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <CalendarIcon className="h-5 w-5 text-primary" />
+                Holiday Calendar
+              </CardTitle>
               <CardDescription>
                 View all holidays for {selectedYear}
               </CardDescription>
@@ -179,8 +190,8 @@ export default function ViewHolidayPage() {
         <div className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center">
-                <CalendarIcon className="mr-2 h-5 w-5" />
+              <CardTitle className="flex items-center gap-2">
+                <CalendarIcon className="h-5 w-5 text-primary" />
                 Calendar View
               </CardTitle>
             </CardHeader>
@@ -196,7 +207,10 @@ export default function ViewHolidayPage() {
           
           <Card>
             <CardHeader>
-              <CardTitle>Upcoming Holidays</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <BadgeCheck className="h-5 w-5 text-green-600" />
+                Upcoming Holidays
+              </CardTitle>
             </CardHeader>
             <CardContent>
               {loading ? (

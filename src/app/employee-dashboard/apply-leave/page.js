@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { PlusCircle, Calendar as CalendarIcon, Loader2, AlertCircle } from "lucide-react";
+import { PlusCircle, Calendar as CalendarIcon, Loader2, AlertCircle, Plane, ClipboardEdit, CheckCircle } from "lucide-react";
 import { toast } from "sonner";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -154,21 +154,30 @@ export default function ApplyLeavePage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Apply Leave</h1>
+        <h1 className="text-3xl font-bold flex items-center gap-2">
+          <Plane className="h-8 w-8 text-primary" />
+          Apply Leave
+        </h1>
       </div>
 
       {/* Leave Application Form */}
       {showForm && (
         <Card>
           <CardHeader>
-            <CardTitle>Request Leave</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <ClipboardEdit className="h-5 w-5 text-blue-500" />
+              Request Leave
+            </CardTitle>
             <CardDescription>Fill in the details to apply for leave</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmitLeave} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="leaveType">Leave Type</Label>
+                  <Label htmlFor="leaveType" className="flex items-center gap-1">
+                    <PlusCircle className="h-4 w-4 text-primary" />
+                    Leave Type
+                  </Label>
                   <Select 
                     value={String(leaveForm.leave_type_id)}
                     onValueChange={(value) => setLeaveForm(prev => ({ ...prev, leave_type_id: Number(value) }))}
@@ -191,7 +200,10 @@ export default function ApplyLeavePage() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="fromDate">From Date</Label>
+                  <Label htmlFor="fromDate" className="flex items-center gap-1">
+                    <CalendarIcon className="h-4 w-4 text-primary" />
+                    From Date
+                  </Label>
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button
@@ -226,7 +238,10 @@ export default function ApplyLeavePage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="toDate">To Date</Label>
+                  <Label htmlFor="toDate" className="flex items-center gap-1">
+                    <CalendarIcon className="h-4 w-4 text-primary" />
+                    To Date
+                  </Label>
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button
@@ -259,13 +274,17 @@ export default function ApplyLeavePage() {
               </div>
 
               {leaveForm.start_date && leaveForm.end_date && (
-                <div className="text-sm font-medium">
+                <div className="text-sm font-medium flex items-center gap-2">
+                  <CheckCircle className="h-4 w-4 text-green-500" />
                   Leave Duration: {calculateDays()} day(s)
                 </div>
               )}
 
               <div className="space-y-2">
-                <Label htmlFor="reason">Reason for Leave</Label>
+                <Label htmlFor="reason" className="flex items-center gap-1">
+                  <ClipboardEdit className="h-4 w-4 text-blue-500" />
+                  Reason for Leave
+                </Label>
                 <Textarea
                   id="reason"
                   placeholder="Please provide a reason for your leave request"
@@ -279,14 +298,17 @@ export default function ApplyLeavePage() {
                 <Button type="button" variant="outline" onClick={() => setShowForm(false)}>
                   Cancel
                 </Button>
-                <Button type="submit" disabled={submitting}>
+                <Button type="submit" disabled={submitting} className="flex items-center gap-2">
                   {submitting ? (
                     <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      <Loader2 className="h-4 w-4 animate-spin" />
                       Submitting...
                     </>
                   ) : (
-                    "Submit Request"
+                    <>
+                      <CheckCircle className="h-4 w-4 text-green-500" />
+                      Submit Request
+                    </>
                   )}
                 </Button>
               </div>

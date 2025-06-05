@@ -1079,12 +1079,12 @@ export default function ActivityMonitoringPage() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="flex items-center gap-1"><CalendarIcon className="h-4 w-4 text-primary" />Date</TableHead>
-                        <TableHead className="flex items-center gap-1"><Clock className="h-4 w-4 text-blue-500" />Time</TableHead>
-                        <TableHead className="flex items-center gap-1"><Monitor className="h-4 w-4 text-green-500" />Application</TableHead>
-                        <TableHead className="flex items-center gap-1"><Globe className="h-4 w-4 text-indigo-500" />Window Title / URL</TableHead>
-                        <TableHead className="flex items-center gap-1"><Timer className="h-4 w-4 text-purple-500" />Duration</TableHead>
-                        <TableHead className="flex items-center gap-1"><User className="h-4 w-4 text-amber-500" />Employee</TableHead>
+                        <TableHead></TableHead>
+                        <TableHead></TableHead>
+                        <TableHead></TableHead>
+                        <TableHead></TableHead>
+                        <TableHead></TableHead>
+                        <TableHead></TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>

@@ -452,32 +452,60 @@ export async function POST(request) {
         }
         // Get date from time if not provided
         const date = data.date || new Date(data.time).toISOString().split('T')[0];
-        // Insert new record
-        const [result] = await db.query(
-          `INSERT INTO app_usage (
-            employee_id, application_name, window_title, url, category,
-            time, end_time, duration_seconds, date, productive,
-            created_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
+        // Check if a record for this app already exists for this employee/date/window_title/url/productive
+        const [existing] = await db.query(
+          `SELECT id, duration_seconds FROM app_usage WHERE employee_id = ? AND application_name = ? AND window_title = ? AND url = ? AND date = ? AND productive = ?`,
           [
             data.employee_id,
             data.application_name,
             data.window_title || null,
             data.url || null,
-            category,
-            data.time,
-            data.end_time || null,
-            durationSeconds,
             date,
-            data.productive || 0, // 0 for unproductive, 1 for productive
+            data.productive || 0
           ]
         );
-        results.push({ 
-          success: true, 
-          message: 'Activity record created successfully',
-          id: result.insertId,
-          employee_id: data.employee_id
-        });
+        if (existing.length > 0) {
+          // Update the existing record by adding duration_seconds
+          const existingId = existing[0].id;
+          const newDuration = Number(existing[0].duration_seconds) + durationSeconds;
+          await db.query(
+            `UPDATE app_usage SET duration_seconds = ? WHERE id = ?`,
+            [newDuration, existingId]
+          );
+          results.push({ 
+            success: true, 
+            message: 'Activity record updated (duration added)',
+            id: existingId,
+            employee_id: data.employee_id
+          });
+        } else {
+          // Insert new record
+          const [result] = await db.query(
+            `INSERT INTO app_usage (
+              employee_id, application_name, window_title, url, category,
+              time, end_time, duration_seconds, date, productive,
+              created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
+            [
+              data.employee_id,
+              data.application_name,
+              data.window_title || null,
+              data.url || null,
+              category,
+              data.time,
+              data.end_time || null,
+              durationSeconds,
+              date,
+              data.productive || 0 // 0 for unproductive, 1 for productive
+            ]
+          );
+          results.push({ 
+            success: true, 
+            message: 'Activity record created successfully',
+            id: result.insertId,
+            employee_id: data.employee_id
+          });
+        }
       } catch (error) {
         results.push({
           success: false,

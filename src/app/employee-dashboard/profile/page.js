@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { User, Mail, Briefcase, Building, Calendar } from "lucide-react";
+import { User, Mail, Briefcase, Building, Calendar, UserCircle } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 
@@ -50,7 +50,10 @@ export default function ProfilePage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">My Profile</h1>
+        <h1 className="text-3xl font-bold flex items-center gap-2">
+          <User className="h-8 w-8 text-primary" />
+          My Profile
+        </h1>
         <p className="text-muted-foreground mt-1">
           View and manage your account information
         </p>
@@ -59,7 +62,10 @@ export default function ProfilePage() {
       <div className="grid gap-6 md:grid-cols-2">
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-xl">Personal Information</CardTitle>
+            <CardTitle className="text-xl flex items-center gap-2">
+              <User className="h-5 w-5 text-primary" />
+              Personal Information
+            </CardTitle>
             <CardDescription>
               Your personal details as they appear in our system
             </CardDescription>
@@ -103,7 +109,10 @@ export default function ProfilePage() {
         
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-xl">Work Information</CardTitle>
+            <CardTitle className="text-xl flex items-center gap-2">
+              <Briefcase className="h-5 w-5 text-primary" />
+              Work Information
+            </CardTitle>
             <CardDescription>
               Details about your work position and team
             </CardDescription>
