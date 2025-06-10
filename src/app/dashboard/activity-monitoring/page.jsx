@@ -512,7 +512,6 @@ export default function ActivityMonitoringPage() {
                   <Clock className="h-4 w-4 text-primary" />
                   Total Application Usage Time
                 </CardTitle>
-                <Clock className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{formatTime(Math.round(Number(activityData.total_hours) * 3600))}</div>
@@ -528,7 +527,6 @@ export default function ActivityMonitoringPage() {
                   <TrendingUp className="h-4 w-4 text-green-500" />
                   Productivity Rate
                 </CardTitle>
-                <TrendingUp className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{calculateProductivityRate()}</div>
@@ -544,7 +542,6 @@ export default function ActivityMonitoringPage() {
                   <Briefcase className="h-4 w-4 text-blue-500" />
                   Applications
                 </CardTitle>
-                <Briefcase className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{activityData.appSummary.length}</div>
@@ -559,8 +556,7 @@ export default function ActivityMonitoringPage() {
                 <CardTitle className="text-sm font-medium flex items-center gap-2">
                   <PieChartIcon className="h-4 w-4 text-purple-500" />
                   Top Category
-                </CardTitle>
-                {categorySummaryData.length > 0 && getCategoryIcon(categorySummaryData[0].name)}
+                </CardTitle>  
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold capitalize">
