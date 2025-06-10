@@ -37,6 +37,11 @@ export async function POST(request) {
         'UPDATE super_admins SET password = ? WHERE id = ?',
         [hashedPassword, user_id]
       );
+    } else if (user_type === 'user') {
+      await db.query(
+        'UPDATE users SET password = ? WHERE id = ?',
+        [hashedPassword, user_id]
+      );
     } else {
       return NextResponse.json({ message: 'Invalid user type' }, { status: 400 });
     }
