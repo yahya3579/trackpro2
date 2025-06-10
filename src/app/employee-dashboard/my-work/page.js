@@ -1,50 +1,38 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Progress } from "@/components/ui/progress";
-import { Calendar } from "@/components/ui/calendar";
-import { Button } from "@/components/ui/button";
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
-import { Calendar as CalendarIcon, Clock, Activity, BarChart2, TrendingUp, CheckCircle, XCircle } from "lucide-react";
-import { Pie, Bar } from 'react-chartjs-2';
-import {
-  Chart as ChartJS,
-  ArcElement,
-  Tooltip,
-  Legend,
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  Title as ChartTitle,
-  Tooltip as ChartTooltip,
-  Legend as ChartLegend
-} from 'chart.js';
-
-// Register Chart.js components
-ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, ChartTitle, ChartTooltip, ChartLegend);
+import { Clock, Activity, Timer, Calendar as CalendarIcon, Loader2, LogIn, LogOut } from "lucide-react";
+import { toast } from "sonner";
 
 export default function MyWork() {
-  // State for date range selection
-  const [date, setDate] = useState({
-    from: new Date(),
-    to: new Date(),
-  });
-  
-  // States for data
-  const [timeTrackingData, setTimeTrackingData] = useState(null);
-  const [appUsageData, setAppUsageData] = useState([]);
-  const [productivityData, setProductivityData] = useState(null);
+  const [timeData, setTimeData] = useState([]);
+  const [timeRange, setTimeRange] = useState("week");
   const [loading, setLoading] = useState(true);
-  const [appUsageTab, setAppUsageTab] = useState("all");
 
-  // Get token from localStorage
+  // Fetch data on mount and when time range changes
+  useEffect(() => {
+    fetchTimeData();
+  }, [timeRange]);
+
+  // Function to get token from localStorage
   const getToken = () => {
     if (typeof window !== "undefined") {
       return localStorage.getItem("token");
@@ -52,385 +40,335 @@ export default function MyWork() {
     return null;
   };
 
-  // Format date for API calls
-  const formatDateForAPI = (date) => {
-    return format(date, "yyyy-MM-dd");
-  };
-
-  // Fetch time tracking data
-  const fetchTimeTrackingData = async () => {
+  // Fetch time tracking data from API
+  const fetchTimeData = async () => {
+    setLoading(true);
     try {
       const token = getToken();
-      if (!token) return;
+      if (!token) {
+        toast.error("Authentication token not found");
+        return;
+      }
 
-      const startDate = formatDateForAPI(date.from);
-      const endDate = formatDateForAPI(date.to);
+      // Calculate date range based on selected time range
+      let startDate, endDate;
+      const today = new Date();
+      
+      switch (timeRange) {
+        case "today":
+          startDate = today.toISOString().split('T')[0];
+          endDate = startDate;
+          break;
+        case "week":
+          // Get the first day of the week (Sunday)
+          const firstDay = new Date(today);
+          const day = today.getDay();
+          firstDay.setDate(today.getDate() - day);
+          startDate = firstDay.toISOString().split('T')[0];
+          endDate = today.toISOString().split('T')[0];
+          break;
+        case "month":
+          // Get the first day of the month
+          const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+          startDate = firstDayOfMonth.toISOString().split('T')[0];
+          endDate = today.toISOString().split('T')[0];
+          break;
+        default:
+          // Default to last 7 days
+          const lastWeek = new Date(today);
+          lastWeek.setDate(today.getDate() - 7);
+          startDate = lastWeek.toISOString().split('T')[0];
+          endDate = today.toISOString().split('T')[0];
+      }
 
-      const res = await fetch(`/api/time-tracking?start_date=${startDate}&end_date=${endDate}`, {
+      // Build the query URL - will automatically filter for current employee
+      const queryUrl = `/api/time-tracking?start_date=${startDate}&end_date=${endDate}`;
+
+      const response = await fetch(queryUrl, {
         headers: {
           "x-auth-token": token,
         },
       });
 
-      const data = await res.json();
-      if (data.success) {
-        setTimeTrackingData(data.timeData);
+      if (!response.ok) {
+        throw new Error("Failed to fetch time tracking data");
       }
+
+      const data = await response.json();
+      setTimeData(data.timeData || []);
     } catch (error) {
-      console.error("Error fetching time tracking data:", error);
-    }
-  };
-
-  // Fetch app usage data
-  const fetchAppUsageData = async () => {
-    try {
-      const token = getToken();
-      if (!token) return;
-
-      const startDate = formatDateForAPI(date.from);
-      const endDate = formatDateForAPI(date.to);
-
-      const res = await fetch(
-        `/api/activity-monitoring?start_date=${startDate}&end_date=${endDate}&employee_view=true`,
-        {
-          headers: {
-            "x-auth-token": token,
-          },
-        }
-      );
-
-      const data = await res.json();
-      if (data.success) {
-        setAppUsageData(data.appUsage || []);
-      }
-    } catch (error) {
-      console.error("Error fetching app usage data:", error);
-    }
-  };
-
-  // Fetch productivity data
-  const fetchProductivityData = async () => {
-    try {
-      const token = getToken();
-      if (!token) return;
-
-      const startDate = formatDateForAPI(date.from);
-      const endDate = formatDateForAPI(date.to);
-
-      const res = await fetch(
-        `/api/activity-monitoring/employee-productivity?start_date=${startDate}&end_date=${endDate}`,
-        {
-          headers: {
-            "x-auth-token": token,
-          },
-        }
-      );
-
-      const data = await res.json();
-      if (data.success && data.employees && data.employees.length > 0) {
-        setProductivityData(data.employees[0]);
-      }
-    } catch (error) {
-      console.error("Error fetching productivity data:", error);
-    }
-  };
-
-  // Format seconds to hours and minutes
-  const formatTime = (seconds) => {
-    if (!seconds) return "0h 0m";
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    return `${hours}h ${minutes}m`;
-  };
-
-  // Fetch all data when date range changes
-  useEffect(() => {
-    const fetchAllData = async () => {
-      setLoading(true);
-      await Promise.all([
-        fetchTimeTrackingData(),
-        fetchAppUsageData(),
-        fetchProductivityData(),
-      ]);
+      console.error("Error fetching time data:", error);
+      toast.error("Failed to load time tracking data");
+    } finally {
       setLoading(false);
-    };
-
-    if (date.from && date.to) {
-      fetchAllData();
     }
-  }, [date]);
+  };
 
-  // Group app usage by application name, and collect first_time and last_end_time
-  const appUsageSummary = appUsageData.reduce((acc, item) => {
-    const key = item.application_name;
-    if (!acc[key]) {
-      acc[key] = {
-        name: key,
-        duration: 0,
-        productive: Number(item.productive),
-        category: item.category || "other",
-        first_time: item.first_time,
-        last_end_time: item.last_end_time,
-      };
-    } else {
-      if (item.first_time && (!acc[key].first_time || item.first_time < acc[key].first_time)) {
-        acc[key].first_time = item.first_time;
-      }
-      if (item.last_end_time && (!acc[key].last_end_time || item.last_end_time > acc[key].last_end_time)) {
-        acc[key].last_end_time = item.last_end_time;
+  // Helper to flatten nested timeData object to array
+  const flattenTimeData = (data) => {
+    if (Array.isArray(data)) return data;
+    if (!data || typeof data !== 'object') return [];
+    // data is an object: {date: {employee_id: {...}}}
+    return Object.values(data).flatMap(dateObj => Object.values(dateObj));
+  };
+
+  // Parse sessions data which could be a string or array
+  function parseSessions(sessions) {
+    if (Array.isArray(sessions)) {
+      return sessions;
+    }
+    
+    if (typeof sessions === 'string') {
+      try {
+        // Some databases might return escaped JSON strings
+        const cleanedString = sessions.replace(/\\"/g, '"').replace(/\\\\/g, '\\');
+        return JSON.parse(cleanedString);
+      } catch (e) {
+        // Try another approach if the first one fails
+        try {
+          // Check if it might be wrapped in additional quotes
+          if (sessions.startsWith('"') && sessions.endsWith('"')) {
+            const innerJson = sessions.substring(1, sessions.length - 1);
+            return JSON.parse(innerJson);
+          }
+          
+          // Handle cases where it's a string representation of array but not properly quoted
+          if (sessions.includes("{") && sessions.includes("}")) {
+            const fixedJson = sessions
+              .replace(/(['"])?([a-zA-Z0-9_]+)(['"])?:/g, '"$2":')
+              .replace(/'/g, '"');
+            return JSON.parse(fixedJson);
+          }
+        } catch (innerError) {
+          console.error("Failed to parse sessions:", innerError);
+        }
       }
     }
-    acc[key].duration += item.duration_seconds || 0;
-    return acc;
-  }, {});
-
-  // Convert to array and sort by duration
-  const sortedAppUsage = Object.values(appUsageSummary).sort(
-    (a, b) => b.duration - a.duration
-  );
-
-  // Filtered app usage based on selected tab
-  let filteredAppUsage = sortedAppUsage;
-  if (appUsageTab === "productive") {
-    filteredAppUsage = sortedAppUsage.filter((app) => app.productive === 1);
-  } else if (appUsageTab === "nonProductive") {
-    filteredAppUsage = sortedAppUsage.filter((app) => app.productive === 0);
+    
+    return [];
   }
-  filteredAppUsage = filteredAppUsage.sort((a, b) => b.duration - a.duration);
 
-  // Prepare data for stacked bar chart: one dataset for productive, one for non-productive
-  const appNames = Array.from(new Set(appUsageData.map(item => item.application_name)));
-  const productiveData = appNames.map(appName => {
-    return appUsageData
-      .filter(item => item.application_name === appName && item.productive === 1)
-      .reduce((sum, item) => sum + (item.duration_seconds || 0), 0) / 60;
-  });
-  const nonProductiveData = appNames.map(appName => {
-    return appUsageData
-      .filter(item => item.application_name === appName && item.productive === 0)
-      .reduce((sum, item) => sum + (item.duration_seconds || 0), 0) / 60;
-  });
+  // Helper to get clock in/out from sessions
+  function getClockInOutFromSessions(sessions) {
+    const parsedSessions = parseSessions(sessions);
+    if (!Array.isArray(parsedSessions) || parsedSessions.length === 0) {
+      return { clockIn: null, clockOut: null };
+    }
+    
+    // Sort sessions by start time
+    const sortedSessions = parsedSessions.slice().sort((a, b) => {
+      if (!a.start || !b.start) return 0;
+      return a.start > b.start ? 1 : -1;
+    });
+    
+    const first = sortedSessions[0];
+    const last = sortedSessions[sortedSessions.length - 1];
+    
+    return {
+      clockIn: first.start || null,
+      clockOut: last.end || null
+    };
+  }
+
+  // Format time (HH:MM:SS to HH:MM)
+  const formatTime = (timeString) => {
+    if (!timeString) return "N/A";
+    const [hours, minutes] = timeString.split(':');
+    return `${hours}:${minutes}`;
+  };
+
+  // Calculate summary data
+  const calculateSummary = (data) => {
+    const flatData = flattenTimeData(data);
+    if (flatData.length === 0) return {
+      totalHours: "0.0",
+      totalActiveHours: "0.0",
+      totalBreakHours: "0.0",
+      activePercentage: "0.0",
+      presentDays: 0,
+      absentDays: 0,
+    };
+    
+    const totalHours = flatData.reduce((sum, item) => sum + parseFloat(item.total_hours || 0), 0);
+    const totalActiveHours = flatData.reduce((sum, item) => sum + parseFloat(item.active_time || 0), 0);
+    const totalBreakHours = flatData.reduce((sum, item) => sum + parseFloat(item.break_time || 0), 0);
+    const presentDays = flatData.filter(item => item.status === "present").length;
+    const absentDays = flatData.filter(item => item.status === "absent").length;
+    
+    return {
+      totalHours: totalHours.toFixed(1),
+      totalActiveHours: totalActiveHours.toFixed(1),
+      totalBreakHours: totalBreakHours.toFixed(1),
+      activePercentage: totalHours > 0 ? ((totalActiveHours / totalHours) * 100).toFixed(1) : "0.0",
+      presentDays,
+      absentDays,
+    };
+  };
+
+  const summary = calculateSummary(timeData);
+  const flatData = flattenTimeData(timeData);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center w-full h-96">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+      <div className="flex flex-col md:flex-row justify-between gap-4 md:items-center">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
-            <Activity className="h-8 w-8 text-primary" />
-            My Work
+          <h1 className="text-3xl font-bold tracking-tight text-black flex items-center gap-2">
+            <Clock className="h-7 w-7 text-primary" />
+            My Work History
           </h1>
-          <p className="text-gray-500">
-            Track your work hours and productivity
+          <p className="text-muted-foreground">
+            View your time tracking records
           </p>
         </div>
-
         <div className="flex items-center gap-2">
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                id="date"
-                variant="outline"
-                className="w-auto lg:w-[300px] justify-start text-left font-normal"
-              >
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {date?.from ? (
-                  date.to ? (
-                    <>
-                      {format(date.from, "LLL dd, y")} -{" "}
-                      {format(date.to, "LLL dd, y")}
-                    </>
-                  ) : (
-                    format(date.from, "LLL dd, y")
-                  )
-                ) : (
-                  <span>Pick a date</span>
-                )}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="end">
-              <Calendar
-                initialFocus
-                mode="range"
-                defaultMonth={date?.from}
-                selected={date}
-                onSelect={setDate}
-                numberOfMonths={2}
-              />
-            </PopoverContent>
-          </Popover>
+          <Select value={timeRange} onValueChange={setTimeRange}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Select time range" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="today">Today</SelectItem>
+              <SelectItem value="week">This Week</SelectItem>
+              <SelectItem value="month">This Month</SelectItem>
+              <SelectItem value="all">All Time</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
-      {loading ? (
-        <div className="flex justify-center items-center h-64">
-          <p>Loading your work data...</p>
-        </div>
-      ) : (
-        <div className="grid gap-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <TrendingUp className="h-5 w-5 text-green-500" />
-                Productivity
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {productivityData ? (
-                <div className="space-y-6">
-                  <div className="flex flex-col gap-2">
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-500 flex items-center gap-1">
-                        <TrendingUp className="h-4 w-4 text-green-500" />
-                        Productivity Rate
-                      </span>
-                      <span className="text-sm font-medium flex items-center gap-1">
-                        <TrendingUp className="h-4 w-4 text-green-500" />
-                        {productivityData.productivity_rate || 0}%
-                      </span>
-                    </div>
-                    <Progress value={productivityData.productivity_rate || 0} />
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="flex flex-col gap-1">
-                      <span className="text-sm text-gray-500 flex items-center gap-1">
-                        <CheckCircle className="h-4 w-4 text-green-500" />
-                        Productive Time
-                      </span>
-                      <span className="text-lg font-medium flex items-center gap-1">
-                        <Clock className="h-5 w-5 text-primary" />
-                        {formatTime(productivityData.productive_seconds)}
-                      </span>
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      <span className="text-sm text-gray-500 flex items-center gap-1">
-                        <XCircle className="h-4 w-4 text-red-500" />
-                        Non-Productive Time
-                      </span>
-                      <span className="text-lg font-medium flex items-center gap-1">
-                        <Clock className="h-5 w-5 text-destructive" />
-                        {formatTime(productivityData.non_productive_seconds)}
-                      </span>
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      <span className="text-sm text-gray-500 flex items-center gap-1">
-                        <Clock className="h-4 w-4 text-blue-500" />
-                        Total Time
-                      </span>
-                      <span className="text-lg font-medium flex items-center gap-1">
-                        <Clock className="h-5 w-5 text-blue-500" />
-                        {formatTime(productivityData.total_seconds)}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="text-center text-gray-500">
-                  No productivity data available for the selected date range.
-                </div>
-              )}
-            </CardContent>
-          </Card>
+      {/* Summary Cards */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <Clock className="h-4 w-4 text-primary" />
+              Total Hours
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{summary.totalHours}h</div>
+            <p className="text-xs text-muted-foreground">
+              Hours worked in the period
+            </p>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <Activity className="h-4 w-4 text-green-500" />
+              Active Time
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{summary.totalActiveHours}h</div>
+            <p className="text-xs text-muted-foreground">
+              {summary.activePercentage}% of total time
+            </p>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <CalendarIcon className="h-4 w-4 text-blue-500" />
+              Present Days
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{summary.presentDays}</div>
+            <p className="text-xs text-muted-foreground">
+              Days with tracked time
+            </p>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <Timer className="h-4 w-4 text-orange-500" />
+              Break Time
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{summary.totalBreakHours}h</div>
+            <p className="text-xs text-muted-foreground">
+              Total break time
+            </p>
+          </CardContent>
+        </Card>
+        {/* Last Clock In/Out Cards */}
+        {(() => {
+          const latestRecord = flatData
+            .filter(entry => 
+              parseFloat(entry.total_hours) > 0 || 
+              (entry.clock_in && entry.clock_out) ||
+              (entry.sessions && parseSessions(entry.sessions).length > 0)
+            )
+            .sort((a, b) => new Date(b.date) - new Date(a.date))[0];
+          
+          if (!latestRecord) {
+            return [
+              <Card key="no-clock-in" className="col-span-2 flex justify-center items-center py-6 bg-white rounded-lg">
+                <p className="text-muted-foreground">No recent time records available</p>
+              </Card>,
+              <Card key="no-clock-out" className="col-span-2 flex justify-center items-center py-6 bg-white rounded-lg" />
+            ];
+          }
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <BarChart2 className="h-5 w-5 text-blue-500" />
-                App Usage
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {appNames.length > 0 ? (
-                <div className="w-full max-w-2xl mx-auto" style={{ height: 340 }}>
-                  <Bar
-                    data={{
-                      labels: appNames,
-                      datasets: [
-                        {
-                          label: 'Productive (minutes)',
-                          data: productiveData,
-                          backgroundColor: '#10B981',
-                          stack: 'Stack 0',
-                        },
-                        {
-                          label: 'Non-Productive (minutes)',
-                          data: nonProductiveData,
-                          backgroundColor: '#EF4444',
-                          stack: 'Stack 0',
-                        },
-                      ],
-                    }}
-                    options={{
-                      responsive: true,
-                      maintainAspectRatio: false,
-                      plugins: {
-                        legend: {
-                          display: true,
-                          position: 'bottom',
-                          labels: {
-                            font: { size: 14 },
-                          },
-                        },
-                        title: {
-                          display: true,
-                          text: 'App Usage (Minutes)',
-                          font: { size: 18 },
-                        },
-                        tooltip: {
-                          callbacks: {
-                            label: function(context) {
-                              const value = context.parsed.y || 0;
-                              const seconds = Math.round(value * 60);
-                              return `${context.dataset.label}: ${formatTime(seconds)}`;
-                            }
-                          }
-                        },
-                      },
-                      scales: {
-                        x: {
-                          stacked: true,
-                          grid: {
-                            color: '#e5e7eb',
-                          },
-                          title: {
-                            display: true,
-                            text: 'Application',
-                            color: '#888',
-                            font: { size: 13, weight: 'bold' },
-                          },
-                          ticks: {
-                            color: '#888',
-                            font: { size: 12 },
-                          },
-                        },
-                        y: {
-                          stacked: true,
-                          grid: {
-                            color: '#f3f4f6',
-                          },
-                          title: {
-                            display: true,
-                            text: 'Time (minutes)',
-                            color: '#888',
-                            font: { size: 13, weight: 'bold' },
-                          },
-                          ticks: {
-                            color: '#222',
-                            font: { size: 13, weight: 'bold' },
-                          },
-                        },
-                      },
-                    }}
-                  />
-                </div>
-              ) : (
-                <div className="text-center text-gray-500">
-                  No valid app usage data available for the selected date range.
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-      )}
+          const sessions = parseSessions(latestRecord.sessions);
+          let clockIn = latestRecord.clock_in;
+          let clockOut = latestRecord.clock_out;
+          
+          if (sessions && sessions.length > 0) {
+            const { clockIn: sessClockIn, clockOut: sessClockOut } = getClockInOutFromSessions(sessions);
+            clockIn = sessClockIn || clockIn;
+            clockOut = sessClockOut || clockOut;
+          }
+          
+          const date = latestRecord.date && !isNaN(new Date(latestRecord.date))
+            ? new Date(latestRecord.date).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
+            : "N/A";
+          
+          return [
+            <Card key="clock-in">
+              <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+                <CardTitle className="text-sm font-medium flex items-center gap-2">
+                  <LogIn className="h-4 w-4 text-green-500" />
+                  Clock In
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{formatTime(clockIn)}</div>
+                <p className="text-xs text-muted-foreground">
+                  {date}
+                </p>
+              </CardContent>
+            </Card>,
+            <Card key="clock-out">
+              <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
+                <CardTitle className="text-sm font-medium flex items-center gap-2">
+                  <LogOut className="h-4 w-4 text-red-500" />
+                  Clock Out
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{formatTime(clockOut)}</div>
+                <p className="text-xs text-muted-foreground">
+                  {date}
+                </p>
+              </CardContent>
+            </Card>
+          ];
+        })()}
+      </div>
     </div>
   );
 }

@@ -117,7 +117,7 @@ export function Sidebar({ isSidebarOpen, setIsSidebarOpen }) {
             />
             <NavItem
               href="/employee-dashboard/view-leaves"
-              icon={<ClipboardList className="h-5 w-5 text-blue-500" />}
+              icon={<ClipboardList size={20} />}
               label="View Leaves"
               isSidebarOpen={isSidebarOpen}
               isActive={pathname === "/employee-dashboard/view-leaves"}
