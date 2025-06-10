@@ -26,13 +26,22 @@ import {
 } from "@/components/ui/table";
 import { ChartContainer } from "@/components/ui/chart";
 import {
-  BuildingIcon,
-  UsersIcon,
-  TrendingUpIcon,
-  BarChartIcon,
-  CalendarIcon,
-  MailIcon,
-  ArrowRightIcon,
+  Building,
+  Users,
+  TrendingUp,
+  BarChart2,
+  Calendar,
+  Mail,
+  ArrowRight,
+  LineChart,
+  Clock,
+  Shield,
+  Eye,
+  PlusCircle,
+  Server,
+  Activity,
+  RefreshCcw,
+  Briefcase,
 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 
@@ -150,34 +159,41 @@ export default function SuperAdminDashboard() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Super Admin Dashboard</h1>
-          <p className="text-muted-foreground">
-            Monitor and manage all organizations and employees
-          </p>
+        <div className="flex items-center gap-2">
+          <Shield className="h-7 w-7 text-primary" />
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Super Admin Dashboard</h1>
+            <p className="text-muted-foreground">
+              Monitor and manage all organizations and employees
+            </p>
+          </div>
         </div>
+        <Button variant="outline" className="gap-2">
+          <RefreshCcw className="h-4 w-4" />
+          Refresh Data
+        </Button>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Counter
           value={stats?.total_organizations}
           label="Total Organizations"
-          icon={<BuildingIcon className="h-6 w-6" />}
+          icon={<Building className="h-6 w-6 text-blue-500" />}
         />
         <Counter
           value={stats?.total_employees}
           label="Total Employees"
-          icon={<UsersIcon className="h-6 w-6" />}
+          icon={<Users className="h-6 w-6 text-green-500" />}
         />
         <Counter
           value={stats?.top_organization?.employee_count || 0}
           label={`Top Org: ${stats?.top_organization?.name || 'N/A'}`}
-          icon={<TrendingUpIcon className="h-6 w-6" />}
+          icon={<TrendingUp className="h-6 w-6 text-orange-500" />}
         />
         <Counter
           value={organizations.length}
           label="Active Organizations"
-          icon={<BarChartIcon className="h-6 w-6" />}
+          icon={<Activity className="h-6 w-6 text-purple-500" />}
         />
       </div>
 
@@ -185,8 +201,13 @@ export default function SuperAdminDashboard() {
         {/* Chart Card */}
         <Card className="col-span-7 md:col-span-4">
           <CardHeader className="pb-2">
-            <CardTitle>Organization Growth</CardTitle>
-            <CardDescription>Monthly organization registrations</CardDescription>
+            <div className="flex items-center gap-2">
+              <LineChart className="h-5 w-5 text-primary" />
+              <div>
+                <CardTitle>Organization Growth</CardTitle>
+                <CardDescription>Monthly organization registrations</CardDescription>
+              </div>
+            </div>
           </CardHeader>
           <CardContent className="h-80">
             {loading ? (
@@ -217,10 +238,15 @@ export default function SuperAdminDashboard() {
         {/* Recent Organizations Card */}
         <Card className="col-span-7 md:col-span-3">
           <CardHeader className="pb-2">
-            <CardTitle>Recent Organizations</CardTitle>
-            <CardDescription>
-              Latest registered organizations
-            </CardDescription>
+            <div className="flex items-center gap-2">
+              <Briefcase className="h-5 w-5 text-blue-500" />
+              <div>
+                <CardTitle>Recent Organizations</CardTitle>
+                <CardDescription>
+                  Latest registered organizations
+                </CardDescription>
+              </div>
+            </div>
           </CardHeader>
           <CardContent>
             {loading ? (
@@ -248,12 +274,12 @@ export default function SuperAdminDashboard() {
                     <div className="space-y-0.5 flex-1">
                       <p className="font-medium">{org.name}</p>
                       <div className="flex items-center text-sm text-muted-foreground">
-                        <MailIcon className="mr-1 h-3 w-3" />
+                        <Mail className="mr-1 h-3 w-3 text-blue-400" />
                         {org.email}
                       </div>
                     </div>
-                    <Badge variant="outline" className="ml-auto">
-                      <CalendarIcon className="mr-1 h-3 w-3" />
+                    <Badge variant="outline" className="ml-auto flex items-center gap-1">
+                      <Calendar className="h-3 w-3 text-green-500" />
                       {formatDate(org.created_at)}
                     </Badge>
                   </div>
@@ -265,11 +291,11 @@ export default function SuperAdminDashboard() {
             <Button
               variant="outline"
               size="sm"
-              className="ml-auto"
+              className="ml-auto flex items-center gap-1"
               onClick={() => router.push("/super-admin/organizations")}
             >
               View All
-              <ArrowRightIcon className="ml-1 h-4 w-4" />
+              <ArrowRight className="h-4 w-4 text-primary" />
             </Button>
           </CardFooter>
         </Card>
@@ -278,8 +304,19 @@ export default function SuperAdminDashboard() {
       {/* Organizations Table */}
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle>Organizations</CardTitle>
-          <CardDescription>List of registered organizations</CardDescription>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Server className="h-5 w-5 text-purple-500" />
+              <div>
+                <CardTitle>Organizations</CardTitle>
+                <CardDescription>List of registered organizations</CardDescription>
+              </div>
+            </div>
+            <Button variant="outline" size="sm" className="flex items-center gap-1">
+              <PlusCircle className="h-4 w-4 text-green-500" />
+              Add New
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           {loading ? (
@@ -312,14 +349,21 @@ export default function SuperAdminDashboard() {
                       <TableCell className="font-medium">{org.name}</TableCell>
                       <TableCell>{org.email}</TableCell>
                       <TableCell>
-                        <Badge variant="secondary">{org.employeeCount}</Badge>
+                        <Badge variant="secondary" className="flex items-center w-fit gap-1">
+                          <Users className="h-3 w-3" />
+                          {org.employeeCount}
+                        </Badge>
                       </TableCell>
-                      <TableCell>{formatDate(org.createdAt)}</TableCell>
+                      <TableCell className="flex items-center gap-1">
+                        <Clock className="h-3 w-3 text-muted-foreground" />
+                        {formatDate(org.createdAt)}
+                      </TableCell>
                       <TableCell>
                         <Link
                           href={`/super-admin/organizations/${org.id}`}
-                          className="text-primary hover:underline"
+                          className="text-primary hover:underline flex items-center gap-1"
                         >
+                          <Eye className="h-4 w-4" />
                           View Details
                         </Link>
                       </TableCell>
@@ -334,10 +378,11 @@ export default function SuperAdminDashboard() {
           <Button
             variant="outline"
             size="sm"
-            className="ml-auto"
+            className="ml-auto flex items-center gap-1"
             onClick={() => router.push("/super-admin/organizations")}
           >
             View All Organizations
+            <ArrowRight className="h-4 w-4" />
           </Button>
         </CardFooter>
       </Card>

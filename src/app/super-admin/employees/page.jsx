@@ -38,16 +38,25 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
-  UsersIcon,
-  SearchIcon,
-  MoreHorizontalIcon,
-  BuildingIcon,
-  EyeIcon,
-  MailIcon,
-  UserIcon,
-  BriefcaseIcon,
-  CalendarIcon,
-  ArrowLeftIcon,
+  Users,
+  Search,
+  MoreHorizontal,
+  Building,
+  Eye,
+  Mail,
+  User,
+  Briefcase,
+  Calendar,
+  ArrowLeft,
+  ShieldCheck,
+  BadgeCheck,
+  Clock,
+  Phone,
+  UserCheck,
+  UserX,
+  Filter,
+  UserPlus,
+  ChevronDown,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogClose } from "@/components/ui/dialog";
 import { useDebounce } from "@/hooks/useDebounce";
@@ -193,20 +202,24 @@ export default function EmployeesPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Employees</h1>
-          <p className="text-muted-foreground">
-            {selectedOrganization 
-              ? `Viewing employees for ${organizationName || "selected organization"}`
-              : "View all employees across organizations"}
-          </p>
+        <div className="flex items-center gap-2">
+          <Users className="h-7 w-7 text-primary" />
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Employees</h1>
+            <p className="text-muted-foreground">
+              {selectedOrganization !== "all"
+                ? `Viewing employees for ${organizationName || "selected organization"}`
+                : "View all employees across organizations"}
+            </p>
+          </div>
         </div>
         {selectedOrganization !== "all" && (
           <Button 
             variant="outline" 
             onClick={handleResetFilter}
+            className="flex items-center gap-1"
           >
-            <ArrowLeftIcon className="mr-2 h-4 w-4" />
+            <ArrowLeft className="h-4 w-4 text-primary" />
             All Organizations
           </Button>
         )}
@@ -214,15 +227,20 @@ export default function EmployeesPage() {
 
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle>Employee List</CardTitle>
-          <CardDescription>
-            {employees.length} employee{employees.length !== 1 ? "s" : ""} found
-          </CardDescription>
+          <div className="flex items-center gap-2">
+            <Users className="h-5 w-5 text-blue-500" />
+            <div>
+              <CardTitle>Employee List</CardTitle>
+              <CardDescription>
+                {employees.length} employee{employees.length !== 1 ? "s" : ""} found
+              </CardDescription>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6">
             <div className="relative w-full max-w-sm">
-              <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search employees..."
                 className="pl-10"
@@ -231,22 +249,25 @@ export default function EmployeesPage() {
               />
             </div>
             
-            <Select 
-              value={selectedOrganization} 
-              onValueChange={setSelectedOrganization}
-            >
-              <SelectTrigger className="w-full sm:w-[220px]">
-                <SelectValue placeholder="Filter by organization" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Organizations</SelectItem>
-                {organizations.map((org) => (
-                  <SelectItem key={org.id} value={org.id.toString()}>
-                    {org.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="flex items-center gap-2">
+              <Filter className="h-4 w-4 text-muted-foreground" />
+              <Select 
+                value={selectedOrganization} 
+                onValueChange={setSelectedOrganization}
+              >
+                <SelectTrigger className="w-full sm:w-[220px]">
+                  <SelectValue placeholder="Filter by organization" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Organizations</SelectItem>
+                  {organizations.map((org) => (
+                    <SelectItem key={org.id} value={org.id.toString()}>
+                      {org.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           {loading ? (
@@ -277,7 +298,7 @@ export default function EmployeesPage() {
                           <div className="text-destructive">{error}</div>
                         ) : (
                           <div className="flex flex-col items-center justify-center space-y-2">
-                            <UsersIcon className="h-8 w-8 text-muted-foreground/60" />
+                            <UserX className="h-8 w-8 text-muted-foreground/60" />
                             <p className="text-muted-foreground">No employees found</p>
                           </div>
                         )}
@@ -286,6 +307,10 @@ export default function EmployeesPage() {
                   ) : (
                     employees.map((employee) => {
                       const statusBadge = getStatusBadge(employee.status);
+                      const statusIcon = employee.status?.toLowerCase() === "active" 
+                        ? <UserCheck className="h-3 w-3 mr-1" /> 
+                        : <UserX className="h-3 w-3 mr-1" />;
+                      
                       return (
                         <TableRow key={employee.id}>
                           <TableCell>
@@ -296,7 +321,7 @@ export default function EmployeesPage() {
                               <div>
                                 <p className="font-medium">{employee.employee_name || "Unnamed"}</p>
                                 <div className="flex items-center text-sm text-muted-foreground">
-                                  <MailIcon className="mr-1 h-3 w-3" />
+                                  <Mail className="mr-1 h-3 w-3 text-blue-400" />
                                   {employee.email || "No email"}
                                 </div>
                               </div>
@@ -305,7 +330,7 @@ export default function EmployeesPage() {
                           <TableCell>
                             {employee.organization_name ? (
                               <div className="flex items-center space-x-1">
-                                <BuildingIcon className="h-4 w-4 text-muted-foreground" />
+                                <Building className="h-4 w-4 text-purple-500" />
                                 <span>{employee.organization_name}</span>
                               </div>
                             ) : (
@@ -314,19 +339,20 @@ export default function EmployeesPage() {
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center space-x-1">
-                              <BriefcaseIcon className="h-4 w-4 text-muted-foreground" />
+                              <Briefcase className="h-4 w-4 text-orange-500" />
                               <span>{employee.role || "No role"}</span>
                             </div>
                           </TableCell>
                           <TableCell>
-                            <Badge variant={statusBadge.variant}>
+                            <Badge variant={statusBadge.variant} className="flex items-center gap-1">
+                              {statusIcon}
                               {statusBadge.label}
                             </Badge>
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center">
-                              <CalendarIcon className="mr-2 h-4 w-4 text-muted-foreground" />
-                              <span className="text-muted-foreground">
+                              <Calendar className="mr-2 h-4 w-4 text-green-500" />
+                              <span>
                                 {formatDate(employee.joined_date)}
                               </span>
                             </div>
@@ -335,22 +361,26 @@ export default function EmployeesPage() {
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
                                 <Button variant="ghost" size="icon">
-                                  <MoreHorizontalIcon className="h-4 w-4" />
+                                  <MoreHorizontal className="h-4 w-4" />
                                   <span className="sr-only">Open menu</span>
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
-                                <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                <DropdownMenuLabel className="flex items-center gap-1">
+                                  <User className="h-4 w-4 text-primary" />
+                                  Actions
+                                </DropdownMenuLabel>
                                 <DropdownMenuSeparator />
-                                <DropdownMenuItem onClick={() => handleViewDetails(employee)}>
-                                  <EyeIcon className="mr-2 h-4 w-4" />
+                                <DropdownMenuItem onClick={() => handleViewDetails(employee)} className="flex items-center gap-1">
+                                  <Eye className="h-4 w-4 text-blue-500" />
                                   View Details
                                 </DropdownMenuItem>
                                 {employee.organization_id && (
                                   <DropdownMenuItem
                                     onClick={() => router.push(`/super-admin/organizations/${employee.organization_id}`)}
+                                    className="flex items-center gap-1"
                                   >
-                                    <BuildingIcon className="mr-2 h-4 w-4" />
+                                    <Building className="h-4 w-4 text-purple-500" />
                                     View Organization
                                   </DropdownMenuItem>
                                 )}
@@ -370,9 +400,12 @@ export default function EmployeesPage() {
 
       {/* Employee Details Dialog */}
       <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Employee Details</DialogTitle>
+            <div className="flex items-center gap-2">
+              <BadgeCheck className="h-5 w-5 text-primary" />
+              <DialogTitle>Employee Details</DialogTitle>
+            </div>
             <DialogDescription>
               Detailed information about the employee
             </DialogDescription>
@@ -385,19 +418,49 @@ export default function EmployeesPage() {
                 </div>
                 <div>
                   <div className="font-semibold text-lg">{selectedEmployee.employee_name || "Unnamed"}</div>
-                  <div className="text-muted-foreground text-sm">{selectedEmployee.email || "No email"}</div>
+                  <div className="text-muted-foreground text-sm flex items-center gap-1">
+                    <Mail className="h-3 w-3 text-blue-400" />
+                    {selectedEmployee.email || "No email"}
+                  </div>
                 </div>
               </div>
-              <div className="flex flex-col gap-2">
-                <div><span className="font-medium">Role:</span> {selectedEmployee.role || "-"}</div>
-                <div><span className="font-medium">Status:</span> {selectedEmployee.status || "-"}</div>
-                <div><span className="font-medium">Joined:</span> {formatDate(selectedEmployee.joined_date)}</div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 bg-muted/20 p-4 rounded-md">
+                <div className="flex items-center gap-2">
+                  <Briefcase className="h-4 w-4 text-orange-500" />
+                  <span className="font-medium">Role:</span> {selectedEmployee.role || "-"}
+                </div>
+                <div className="flex items-center gap-2">
+                  <UserCheck className="h-4 w-4 text-green-500" />
+                  <span className="font-medium">Status:</span> {selectedEmployee.status || "-"}
+                </div>
+                <div className="flex items-center gap-2">
+                  <Calendar className="h-4 w-4 text-blue-500" />
+                  <span className="font-medium">Joined:</span> {formatDate(selectedEmployee.joined_date)}
+                </div>
                 {selectedEmployee.organization_name && (
-                  <div><span className="font-medium">Organization:</span> {selectedEmployee.organization_name}</div>
+                  <div className="flex items-center gap-2">
+                    <Building className="h-4 w-4 text-purple-500" />
+                    <span className="font-medium">Organization:</span> {selectedEmployee.organization_name}
+                  </div>
+                )}
+                {selectedEmployee.phone && (
+                  <div className="flex items-center gap-2">
+                    <Phone className="h-4 w-4 text-blue-500" />
+                    <span className="font-medium">Phone:</span> {selectedEmployee.phone}
+                  </div>
+                )}
+                {selectedEmployee.last_active && (
+                  <div className="flex items-center gap-2">
+                    <Clock className="h-4 w-4 text-orange-500" />
+                    <span className="font-medium">Last Active:</span> {formatDate(selectedEmployee.last_active)}
+                  </div>
                 )}
               </div>
             </div>
           )}
+          <div className="flex justify-end">
+            <Button variant="outline" onClick={() => setDetailsOpen(false)}>Close</Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

@@ -50,13 +50,29 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import {
-  BuildingIcon,
-  MoreHorizontalIcon,
-  SearchIcon,
-  PlusIcon,
-  UsersIcon,
-  EyeIcon,
-  CalendarIcon,
+  Building,
+  MoreHorizontal,
+  Search,
+  Plus,
+  Users,
+  Eye,
+  Calendar,
+  Mail,
+  Shield,
+  Key,
+  Briefcase,
+  UserPlus,
+  Globe,
+  BookOpen,
+  PenTool,
+  ChevronLeft,
+  ChevronRight,
+  Server,
+  RefreshCw,
+  AlertCircle,
+  Activity,
+  Clock,
+  BuildingIcon
 } from "lucide-react";
 
 export default function OrganizationsPage() {
@@ -280,61 +296,89 @@ export default function OrganizationsPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Organizations</h1>
-          <p className="text-muted-foreground">
-            Manage all registered organizations in the system
-          </p>
+        <div className="flex items-center gap-2">
+          <BuildingIcon className="h-7 w-7 text-primary" />
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Organizations</h1>
+            <p className="text-muted-foreground">
+              Manage all registered organizations in the system
+            </p>
+          </div>
         </div>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
-            <Button>
-              <PlusIcon className="mr-2 h-4 w-4" />
+            <Button className="flex items-center gap-2">
+              <Plus className="h-4 w-4" />
               Add Organization
             </Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Create New Organization</DialogTitle>
+              <div className="flex items-center gap-2">
+                <Building className="h-5 w-5 text-primary" />
+                <DialogTitle>Create New Organization</DialogTitle>
+              </div>
               <DialogDescription>
                 Add a new organization to the system
               </DialogDescription>
             </DialogHeader>
             <form onSubmit={handleCreateOrganization}>
               {formError && (
-                <div className="bg-destructive/15 text-destructive text-sm p-3 rounded-md mb-4">
+                <div className="bg-destructive/15 text-destructive text-sm p-3 rounded-md mb-4 flex items-center gap-2">
+                  <AlertCircle className="h-4 w-4 text-destructive" />
                   {formError}
                 </div>
               )}
               <div className="space-y-4 py-2 pb-4">
                 <div className="space-y-2">
-                  <Label htmlFor="name">Organization Name</Label>
-                  <Input
-                    id="name"
-                    placeholder="Enter organization name"
-                    value={newOrg.name}
-                    onChange={(e) => setNewOrg({ ...newOrg, name: e.target.value })}
-                  />
+                  <Label htmlFor="name" className="flex items-center gap-1">
+                    <Briefcase className="h-3 w-3" />
+                    Organization Name
+                  </Label>
+                  <div className="relative">
+                    <Building className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="name"
+                      placeholder="Enter organization name"
+                      className="pl-10"
+                      value={newOrg.name}
+                      onChange={(e) => setNewOrg({ ...newOrg, name: e.target.value })}
+                    />
+                  </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="admin@organization.com"
-                    value={newOrg.email}
-                    onChange={(e) => setNewOrg({ ...newOrg, email: e.target.value })}
-                  />
+                  <Label htmlFor="email" className="flex items-center gap-1">
+                    <Mail className="h-3 w-3" />
+                    Email
+                  </Label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="email"
+                      type="email"
+                      className="pl-10"
+                      placeholder="admin@organization.com"
+                      value={newOrg.email}
+                      onChange={(e) => setNewOrg({ ...newOrg, email: e.target.value })}
+                    />
+                  </div>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="password">Password</Label>
-                  <Input
-                    id="password"
-                    type="password"
-                    placeholder="Create a secure password"
-                    value={newOrg.password}
-                    onChange={(e) => setNewOrg({ ...newOrg, password: e.target.value })}
-                  />
+                  <Label htmlFor="password" className="flex items-center gap-1">
+                    <Key className="h-3 w-3" />
+                    Password
+                  </Label>
+                  <div className="relative">
+                    <Key className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="password"
+                      type="password"
+                      className="pl-10"
+                      placeholder="Create a secure password"
+                      value={newOrg.password}
+                      onChange={(e) => setNewOrg({ ...newOrg, password: e.target.value })}
+                    />
+                  </div>
                 </div>
               </div>
               <DialogFooter>
@@ -342,10 +386,12 @@ export default function OrganizationsPage() {
                   variant="outline" 
                   type="button" 
                   onClick={() => setIsDialogOpen(false)}
+                  className="flex items-center gap-2"
                 >
                   Cancel
                 </Button>
-                <Button type="submit" disabled={isSubmitting}>
+                <Button type="submit" disabled={isSubmitting} className="flex items-center gap-2">
+                  {isSubmitting ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
                   {isSubmitting ? "Creating..." : "Create Organization"}
                 </Button>
               </DialogFooter>
@@ -356,15 +402,20 @@ export default function OrganizationsPage() {
 
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle>Organization List</CardTitle>
-          <CardDescription>
-            Total of {pagination.total || 0} organizations
-          </CardDescription>
+          <div className="flex items-center gap-2">
+            <Server className="h-5 w-5 text-purple-500" />
+            <div>
+              <CardTitle>Organization List</CardTitle>
+              <CardDescription>
+                Total of {pagination.total || 0} organizations
+              </CardDescription>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="flex justify-between items-center mb-6">
             <form onSubmit={handleSearch} className="relative w-full max-w-sm">
-              <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search organizations..."
                 className="pl-10"
@@ -372,6 +423,10 @@ export default function OrganizationsPage() {
                 onChange={(e) => setSearch(e.target.value)}
               />
             </form>
+            <Button variant="outline" onClick={() => fetchOrganizations(1, search)} className="flex items-center gap-2">
+              <RefreshCw className="h-4 w-4" />
+              Refresh
+            </Button>
           </div>
 
           {loading ? (
@@ -399,10 +454,13 @@ export default function OrganizationsPage() {
                       <TableRow>
                         <TableCell colSpan={5} className="text-center py-6">
                           {error ? (
-                            <div className="text-destructive">{error}</div>
+                            <div className="text-destructive flex items-center justify-center gap-2">
+                              <AlertCircle className="h-5 w-5 text-destructive" />
+                              {error}
+                            </div>
                           ) : (
                             <div className="flex flex-col items-center justify-center space-y-2">
-                              <BuildingIcon className="h-8 w-8 text-muted-foreground/60" />
+                              <Building className="h-8 w-8 text-muted-foreground/60" />
                               <p className="text-muted-foreground">No organizations found</p>
                             </div>
                           )}
@@ -430,38 +488,47 @@ export default function OrganizationsPage() {
                               </div>
                             </div>
                           </TableCell>
-                          <TableCell>{org.email}</TableCell>
                           <TableCell>
-                            <div className="flex items-center">
-                              <UsersIcon className="mr-2 h-4 w-4 text-muted-foreground" />
-                              <Badge variant="secondary">{org.employeeCount}</Badge>
+                            <div className="flex items-center gap-1">
+                              <Mail className="h-4 w-4 text-blue-500" />
+                              {org.email}
                             </div>
                           </TableCell>
                           <TableCell>
-                            <div className="flex items-center">
-                              <CalendarIcon className="mr-2 h-4 w-4 text-muted-foreground" />
-                              <span className="text-muted-foreground">
-                                {formatDate(org.createdAt)}
-                              </span>
+                            <div className="flex items-center gap-2">
+                              <Users className="h-4 w-4 text-green-500" />
+                              <Badge variant="secondary" className="flex items-center gap-1">
+                                <UserPlus className="h-3 w-3" />
+                                {org.employeeCount}
+                              </Badge>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <Calendar className="h-4 w-4 text-orange-500" />
+                              <span>{formatDate(org.createdAt)}</span>
                             </div>
                           </TableCell>
                           <TableCell className="text-right">
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
                                 <Button variant="ghost" size="icon">
-                                  <MoreHorizontalIcon className="h-4 w-4" />
+                                  <MoreHorizontal className="h-4 w-4" />
                                   <span className="sr-only">Open menu</span>
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
-                                <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                                <DropdownMenuLabel className="flex items-center gap-1">
+                                  <Building className="h-4 w-4 text-primary" />
+                                  Actions
+                                </DropdownMenuLabel>
                                 <DropdownMenuSeparator />
-                                <DropdownMenuItem onClick={() => router.push(`/super-admin/organizations/${org.id}`)}>
-                                  <EyeIcon className="mr-2 h-4 w-4" />
+                                <DropdownMenuItem onClick={() => router.push(`/super-admin/organizations/${org.id}`)} className="flex items-center gap-1">
+                                  <Eye className="h-4 w-4 text-blue-500" />
                                   View Details
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => router.push(`/super-admin/employees?organization_id=${org.id}`)}>
-                                  <UsersIcon className="mr-2 h-4 w-4" />
+                                <DropdownMenuItem onClick={() => router.push(`/super-admin/employees?organization_id=${org.id}`)} className="flex items-center gap-1">
+                                  <Users className="h-4 w-4 text-green-500" />
                                   View Employees
                                 </DropdownMenuItem>
                               </DropdownMenuContent>
@@ -486,7 +553,11 @@ export default function OrganizationsPage() {
                             }
                           }}
                           disabled={pagination.page === 1}
-                        />
+                          className="flex items-center gap-1"
+                        >
+                          <ChevronLeft className="h-4 w-4" />
+                          Previous
+                        </PaginationPrevious>
                       </PaginationItem>
                       
                       {renderPaginationItems()}
@@ -499,7 +570,11 @@ export default function OrganizationsPage() {
                             }
                           }}
                           disabled={pagination.page === pagination.totalPages}
-                        />
+                          className="flex items-center gap-1"
+                        >
+                          Next
+                          <ChevronRight className="h-4 w-4" />
+                        </PaginationNext>
                       </PaginationItem>
                     </PaginationContent>
                   </Pagination>

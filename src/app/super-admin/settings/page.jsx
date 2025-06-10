@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
-import { MailIcon, KeyIcon, SaveIcon, UserCogIcon } from "lucide-react";
+import { Mail, Key, Save, User, Shield, AlertCircle, CheckCircle, Lock, Settings } from "lucide-react";
 
 export default function SuperAdminSettingsPage() {
   const router = useRouter();
@@ -85,13 +85,20 @@ export default function SuperAdminSettingsPage() {
 
   return (
     <div className="max-w-xl mx-auto py-8">
+      <div className="mb-8 flex items-center gap-2">
+        <Settings className="h-7 w-7 text-primary" />
+        <h1 className="text-3xl font-bold tracking-tight">Admin Settings</h1>
+      </div>
+      
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <UserCogIcon className="h-6 w-6 text-primary" />
-            Super Admin Settings
-          </CardTitle>
-          <CardDescription>Update your email and password</CardDescription>
+          <div className="flex items-center gap-2">
+            <Settings className="h-5 w-5 text-primary" />
+            <div>
+              <CardTitle>Super Admin Settings</CardTitle>
+              <CardDescription>Update your email and password</CardDescription>
+            </div>
+          </div>
         </CardHeader>
         <Separator />
         <CardContent>
@@ -103,12 +110,25 @@ export default function SuperAdminSettingsPage() {
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-6">
-              {error && <div className="text-destructive text-sm">{error}</div>}
-              {success && <div className="text-green-600 text-sm">{success}</div>}
+              {error && (
+                <div className="flex items-center gap-2 text-destructive text-sm bg-destructive/10 p-3 rounded-md">
+                  <AlertCircle className="h-4 w-4 text-destructive" />
+                  <span>{error}</span>
+                </div>
+              )}
+              {success && (
+                <div className="flex items-center gap-2 text-green-600 text-sm bg-green-50 p-3 rounded-md">
+                  <CheckCircle className="h-4 w-4 text-green-600" />
+                  <span>{success}</span>
+                </div>
+              )}
               <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="email" className="flex items-center gap-1">
+                  <Mail className="h-3 w-3" />
+                  Email Address
+                </Label>
                 <div className="relative">
-                  <MailIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
                     id="email"
                     name="email"
@@ -121,9 +141,12 @@ export default function SuperAdminSettingsPage() {
                 </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="password">New Password</Label>
+                <Label htmlFor="password" className="flex items-center gap-1">
+                  <Lock className="h-3 w-3" />
+                  New Password
+                </Label>
                 <div className="relative">
-                  <KeyIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Key className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
                     id="password"
                     name="password"
@@ -136,19 +159,26 @@ export default function SuperAdminSettingsPage() {
                 </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="confirmPassword">Confirm Password</Label>
-                <Input
-                  id="confirmPassword"
-                  name="confirmPassword"
-                  type="password"
-                  value={form.confirmPassword}
-                  onChange={handleChange}
-                  placeholder="Confirm new password"
-                />
+                <Label htmlFor="confirmPassword" className="flex items-center gap-1">
+                  <Key className="h-3 w-3" />
+                  Confirm Password
+                </Label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="confirmPassword"
+                    name="confirmPassword"
+                    type="password"
+                    className="pl-10"
+                    value={form.confirmPassword}
+                    onChange={handleChange}
+                    placeholder="Confirm new password"
+                  />
+                </div>
               </div>
               <CardFooter className="px-0">
-                <Button type="submit" disabled={saving} className="w-full">
-                  <SaveIcon className="mr-2 h-4 w-4" />
+                <Button type="submit" disabled={saving} className="w-full flex items-center gap-2">
+                  <Save className="h-4 w-4" />
                   {saving ? "Saving..." : "Save Changes"}
                 </Button>
               </CardFooter>
