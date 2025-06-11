@@ -3,7 +3,7 @@ import jwt from 'jsonwebtoken';
 import db from '@/lib/db';
 
 // Secret key for JWT
-const JWT_SECRET = 'trackpro-secret-key';
+const JWT_SECRET = process.env.JWT_SECRET || 'trackpro-secret-key';
 
 /**
  * Authentication middleware for Next.js API routes

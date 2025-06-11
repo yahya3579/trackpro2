@@ -29,7 +29,8 @@ async function main() {
     
     // Call seed API to populate data
     console.log('Seeding leave management data...');
-    const seedResponse = await fetch('http://localhost:3000/api/leave-management/seed');
+    const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3000';
+    const seedResponse = await fetch(`${apiBaseUrl}/api/leave-management/seed`);
     const seedResult = await seedResponse.json();
     
     if (seedResult.success) {

@@ -26,19 +26,19 @@ function generateToken(data) {
 
 // Setup email transporter - replace with your SMTP settings in production
 const transporter = nodemailer.createTransport({
-  host:  'smtp.gmail.com',
-  port: 587,
+  host: process.env.SMTP_HOST,
+  port: process.env.SMTP_PORT,
   secure: false,
   auth: {
-    user: 'ninjab330@gmail.com',
-    pass: 'dylj bvbr rbxn fmno'
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS
   }
 });
 
 // Send invitation email
 async function sendInvitationEmail(employee, inviteToken) {
   // App URL from environment or default
-  const appUrl = 'http://localhost:3000';
+  const appUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:3000';
   
   // Simple token doesn't need complex encoding
   const inviteUrl = `${appUrl}/invite/accept?token=${inviteToken}`;

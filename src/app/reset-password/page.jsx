@@ -48,7 +48,7 @@ export default function ResetPasswordPage() {
       }
 
       try {
-        const response = await fetch('http://localhost:3000/api/auth/verify-reset-token', {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/auth/verify-reset-token`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -103,7 +103,7 @@ export default function ResetPasswordPage() {
     setIsSubmitting(true);
 
     try {
-      const response = await fetch('http://localhost:3000/api/auth/reset-password', {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/api/auth/reset-password`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
